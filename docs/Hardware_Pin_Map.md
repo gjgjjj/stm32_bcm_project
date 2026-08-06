@@ -35,7 +35,7 @@
 | ---- | ---- | ---- | ---- | ---- | ---- |
 | CAN1 | 车载CAN通信总线 | PB8(CAN_RX)、PB9(CAN_TX) | 复用推挽 | 波特率250Kbps，标准帧，采样点80% | 需开启 CAN1 引脚重映射、开启 AFIO 时钟;使用板载SIT1042CAN 收发器，对接USB-CAN调试器 |
 | USART1 | 系统调试日志串口 | PA9(TX)、PA10(RX) | 复用推挽 | 波特率115200，8数据位，无校验，1停止位 | 输出分级调试日志 |
-| SPI1 | W25Q64 Flash存储 | PA4(NSS)、PA5(SCK)、PA6(MISO)、PA7(MOSI) | 复用推挽 | 全双工主模式，CPOL=0/CPHA=0，最高18MHz | 存储故障日志，采用环形缓冲区方案 |
+| SPI1 | W25Q64 Flash存储 | PA4(NSS)、PA5(SCK)、PA6(MISO)、PA7(MOSI) | 复用推挽 | 全双工主模式，CPOL=0/CPHA=0，最高9MHz | 存储故障日志，采用环形缓冲区方案 |
 
 
 ---
