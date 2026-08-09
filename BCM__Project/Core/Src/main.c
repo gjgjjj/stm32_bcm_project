@@ -29,6 +29,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "bsp_flash.h"
+#include "bsp_can.h"
+#include "bsp_adc.h"
+#include "bsp_gpio.h"
+#include "bsp_uart.h"
 
 /* USER CODE END Includes */
 
@@ -96,12 +101,17 @@ int main(void)
   MX_GPIO_Init();
   MX_ADC1_Init();
   MX_CAN_Init();
-  MX_IWDG_Init();
+  //MX_IWDG_Init();
   MX_RTC_Init();
   MX_SPI1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  BSP_GPIO_Init();
+  BSP_UART_Init();
+  BSP_CAN_Init();
+  BSP_ADC_Init();
+  BSP_FLASH_Init();
+  
   /* USER CODE END 2 */
 
   /* Init scheduler */

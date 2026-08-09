@@ -93,7 +93,7 @@ void MX_FREERTOS_Init(void) {
   /* Create the thread(s) */
   /* creation of defaultTask */
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
-
+  
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -121,6 +121,7 @@ void StartDefaultTask(void *argument)
   }
   /* USER CODE END StartDefaultTask */
 }
+
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */

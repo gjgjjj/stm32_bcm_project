@@ -216,9 +216,9 @@ BSP/
 #### 3.3.3 接口设计
 ```
 void BSP_GPIO_Init(void);
-void GPIO_WritePin(GPIO_Device_t dev,uint8_t state);
-uint8_t GPIO_ReadPin(GPIO_Device_t dev);
-void GPIO_TogglePin(GPIO_Device_t dev);
+void GPIO_WritePin(GPIO_ID id, uint8_t state);
+uint8_t GPIO_ReadPin(GPIO_ID id);
+void GPIO_TogglePin(GPIO_ID id);
 ```
 #### 3.3.4 安全设计
 系统上电初始化阶段，所有执行器类输出强制设置为安全默认状态：
@@ -244,7 +244,6 @@ void GPIO_TogglePin(GPIO_Device_t dev);
 ```
 void BSP_ADC_Init(void);
 uint16_t ADC_GetValue(void);
-uint16_t ADC_GetAverage(uint8_t times);
 ```
 
 ### 3.5 CAN驱动模块
@@ -334,30 +333,41 @@ void UART_Printf(const char *format, ...);  //格式化打印输出
 | ------------ | -------- | ------------------- |
 | NSS 片选     | PA4      | 模式：全双工主模式    |
 | SCK 时钟     | PA5      | CPOL=0，CPHA=0       |
-| MISO 主机输入| PA6      | 最高速率：18MHz       |
-| MOSI 主机输出| PA7      |                      |
+| MISO 主机输入| PA6      | 最高速率：9MHz       |
+| MOSI 主机输出| PA7      | 数据输出             |
 
 #### 3.7.3 接口设计
+驱动接口采用状态返回机制，统一反馈硬件操作结果。
 ```
-void BSP_FLASH_Init(void);                 //SPI外设与Flash初始化
-void Flash_Read(uint32_t addr, uint8_t *buf, uint16_t len);  //读数据
-void Flash_Write(uint32_t addr, uint8_t *buf, uint16_t len); //页写入
-void Flash_EraseSector(uint32_t addr);     //擦除指定扇区
+typedef enum
+{
+    BSP_FLASH_OK = 0U,
+    BSP_FLASH_ERR_SPI,
+    BSP_FLASH_ERR_TIMEOUT,
+    BSP_FLASH_ERR_PARAM,
+} BSP_Flash_StatusTypeDef;
+```
+
+```
+BSP_Flash_StatusTypeDef BSP_FLASH_Init(void);   //SPI外设与Flash初始化
+BSP_Flash_StatusTypeDef BSP_FLASH_Read(uint32_t addr, uint8_t *buf, uint16_t len);  //读数据
+BSP_Flash_StatusTypeDef BSP_FLASH_WritePage(uint32_t addr, uint8_t *buf, uint16_t len); //页写入
+BSP_Flash_StatusTypeDef BSP_FLASH_EraseSector(uint32_t addr);     //擦除指定扇区
 ```
 #### 3.7.4 可靠性设计
 底层实现硬件级可靠性保障：
 - Busy状态检测；
 - 写完成等待；
-- ID读取校验。
+- SPI错误反馈
+- 参数校验检查
+- 超时保护
 
 ### 3.8 RTC 驱动模块
 #### 3.8.1 功能描述
 提供系统实时时钟服务，主要用于故障日志时间戳标记、调试日志时间标注。
 #### 3.8.2 接口设计
 ```
-void BSP_RTC_Init(void);
 uint32_t RTC_GetTimestamp(void);     //获取当前秒级时间戳
-void RTC_SetTime(RTC_Time_t *time);  //设置RTC时间
 ```
 #### 3.8.3 设计说明
 当前原型版本 RTC 仅用于运行期间的时间标记：
@@ -368,7 +378,6 @@ void RTC_SetTime(RTC_Time_t *time);  //设置RTC时间
 提供系统异常自动复位能力，防止程序跑飞、任务卡死导致设备失控。仅提供基础的初始化与喂狗接口，喂狗策略与任务存活检测由上层系统管理模块实现。
 #### 3.9.2 接口设计
 ```
-void BSP_IWDG_Init(void);
 void IWDG_Feed(void);  //看门狗喂狗，重置计数器
 ```
 #### 3.9.3 使用原则
@@ -464,7 +473,7 @@ Application Task
 
 ### 4.3 信号滤波模块
 #### 4.3.1 功能描述
-负责 ADC 原始数据滤波、光照状态稳定判定、传感器异常检测。
+负责 ADC 原始数据，均值采样，信号滤波、光照状态稳定判定、传感器异常检测。
 输入： ADC 原始采样值
 输出： 有效光照昼夜状态、传感器异常事件
 
@@ -567,7 +576,8 @@ typedef struct
   
 #### 4.5.2 软件数据流
 **接收流程：**
-```CAN 总线
+```
+CAN 总线
 ↓
 BSP CAN 驱动
 ↓
