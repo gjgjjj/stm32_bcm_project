@@ -11,7 +11,7 @@ typedef struct
 
 static const GPIO_Map_t gpio_map[] =
 {
-    [RELAY_LIGHT]  = {GPIOC, GPIO_PIN_1,  1},
+    [RELAY_LIGHT]  = {GPIOC, GPIO_PIN_5,  1},
     [RELAY_LOCK]   = {GPIOC, GPIO_PIN_2,  1},
     [FB_LOCK]      = {GPIOC, GPIO_PIN_3,  1},
     [FB_LIGHT]     = {GPIOC, GPIO_PIN_4,  1},

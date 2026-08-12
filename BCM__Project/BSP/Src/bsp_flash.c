@@ -9,12 +9,15 @@ extern SPI_HandleTypeDef hspi1;
 #define FLASH_CS_HIGH()     HAL_GPIO_WritePin(FLASH_CS_GPIO_PORT,FLASH_CS_GPIO_PIN,GPIO_PIN_SET)
 
 #define W25Q_CMD_WRITE_ENABLE       0x06U   // 写使能命令
-#define W25Q_CMD_READ_STATUS        0x05U   // 读状态寄存器，bit0=1 芯片忙
+#define W25Q_CMD_WRITE_DISABLE      0x04U   // 写禁用命令
+#define W25Q_CMD_READ_STATUS        0x05U   // 读状态寄存器，BUSY=1 芯片忙
 #define W25Q_CMD_READ_DATA          0x03U   // 读数据
 #define W25Q_CMD_PAGE_PROGRAM       0x02U   // 页写入(最多256字节)
 #define W25Q_CMD_SECTOR_ERASE       0x20U   // 4KB扇区擦除
 
-#define FLASH_TIMEOUT               1000U      // 操作超时时间ms
+#define FLASH_TIMEOUT               1000U       // 操作超时时间ms
+#define W25Q_MAX_ADDR               0x7FFFFFU   // W25Q64 最大8M地址 
+#define W25Q_PAGE_SIZE              256U        // W25Q64 页大小
 
 
 static uint8_t FLASH_SPI_SendByte(uint8_t data, BSP_Flash_StatusTypeDef *status_p)
@@ -32,7 +35,7 @@ static uint8_t FLASH_SPI_SendByte(uint8_t data, BSP_Flash_StatusTypeDef *status_
 
 static BSP_Flash_StatusTypeDef FLASH_WriteEnable(void)
 {
-    BSP_Flash_StatusTypeDef status;           //接收FLASH_SPI_SendByte()输出的错误状态
+    BSP_Flash_StatusTypeDef status;           
 
     FLASH_CS_LOW();
     FLASH_SPI_SendByte(W25Q_CMD_WRITE_ENABLE, &status);
@@ -41,7 +44,7 @@ static BSP_Flash_StatusTypeDef FLASH_WriteEnable(void)
     return status;
 }
 
-// 等待 Flash 空闲
+// 循环读 W25Q 状态寄存器,等待空闲BUSY=0
 static BSP_Flash_StatusTypeDef FLASH_WaitBusy(void)
 {
     uint32_t tick = HAL_GetTick();   // 记录起始时间
@@ -92,9 +95,17 @@ BSP_Flash_StatusTypeDef BSP_FLASH_Read(uint32_t addr, uint8_t *buf, uint16_t len
 {
     BSP_Flash_StatusTypeDef status;
 
-    if(buf == NULL || len == 0U)
+    /* 参数校验：空指针、长度0、地址越界，使用减法避免uint32溢出 */
+    if( buf == NULL || len == 0U || addr > W25Q_MAX_ADDR || len > (W25Q_MAX_ADDR - addr) )
     {
         return BSP_FLASH_ERR_PARAM;
+    }
+
+    //等待FLASH空闲，防止擦除/烧写过程中读取到无效数据
+    status = FLASH_WaitBusy();
+    if(status != BSP_FLASH_OK)
+    {
+        return status;
     }
 
     FLASH_CS_LOW();
@@ -105,8 +116,16 @@ BSP_Flash_StatusTypeDef BSP_FLASH_Read(uint32_t addr, uint8_t *buf, uint16_t len
 
     //24位地址拆分，先发高8位
     FLASH_SPI_SendByte((addr >> 16) & 0xffU, &status);
+    if(status != BSP_FLASH_OK)
+        goto READ_EXIT;
+
     FLASH_SPI_SendByte((addr >> 8)  & 0xffU, &status);
+    if(status != BSP_FLASH_OK)
+        goto READ_EXIT;
+
     FLASH_SPI_SendByte(addr & 0xffU, &status);
+    if(status != BSP_FLASH_OK)
+        goto READ_EXIT;
 
     //循环发送0xFF哑字节，返回数据存入buf
     for(uint16_t i = 0U; i < len; i++)
@@ -125,18 +144,26 @@ READ_EXIT:
 BSP_Flash_StatusTypeDef BSP_FLASH_WritePage(uint32_t addr, uint8_t *buf, uint16_t len)
 {
     BSP_Flash_StatusTypeDef status;
+    uint8_t mark = 0U;              //标记：是否已经完整输出页报文
 
-    if(buf == NULL || len == 0U || len > FLASH_PAGE_SIZE)
+    /* 参数校验：空指针、长度、单页最大长度、起始地址越界 */
+    if(buf == NULL || len == 0U || len > W25Q_PAGE_SIZE || addr > W25Q_MAX_ADDR)
     {
         return BSP_FLASH_ERR_PARAM;
     }
 
-    if(((addr & 0xffU) + len) > FLASH_PAGE_SIZE)  //判断是否跨页边界
+    /* 检测是否跨页边界：页内偏移 + 长度 > 页大小 */
+    if( ((addr & 0xFFU) + len) > W25Q_PAGE_SIZE )
+    {
+        return BSP_FLASH_ERR_PARAM;
+    }
+    /* 整体地址范围校验，防止无符号溢出 */
+    if( (addr > W25Q_MAX_ADDR) || ((addr + len - 1U) > W25Q_MAX_ADDR) )
     {
         return BSP_FLASH_ERR_PARAM;
     }
 
-    // 等待芯片空闲
+    // 等待芯片空闲 BUSY=0
     status = FLASH_WaitBusy();
     if(status != BSP_FLASH_OK)
         return status;
@@ -147,10 +174,24 @@ BSP_Flash_StatusTypeDef BSP_FLASH_WritePage(uint32_t addr, uint8_t *buf, uint16_
         return status;
 
     FLASH_CS_LOW();
-    FLASH_SPI_SendByte(W25Q_CMD_PAGE_PROGRAM, &status);      //页写命令
-    FLASH_SPI_SendByte((addr >> 16) & 0xffU, &status);       //24bit地址，高8位
-    FLASH_SPI_SendByte((addr >> 8)  & 0xffU, &status);    
-    FLASH_SPI_SendByte(addr & 0xffU, &status);             
+
+   // 页写命令
+    FLASH_SPI_SendByte(W25Q_CMD_PAGE_PROGRAM, &status);
+    if(status != BSP_FLASH_OK)
+        goto WRITE_EXIT;
+
+    //24bit地址
+    FLASH_SPI_SendByte((addr >> 16) & 0xffU, &status);
+    if(status != BSP_FLASH_OK)
+        goto WRITE_EXIT;
+
+    FLASH_SPI_SendByte((addr >> 8)  & 0xffU, &status);
+    if(status != BSP_FLASH_OK)
+        goto WRITE_EXIT;
+
+    FLASH_SPI_SendByte(addr & 0xffU, &status);
+    if(status != BSP_FLASH_OK)
+        goto WRITE_EXIT;           
 
     //循环发送要写入的数据
     for(uint16_t i = 0U; i < len; i++)
@@ -160,22 +201,32 @@ BSP_Flash_StatusTypeDef BSP_FLASH_WritePage(uint32_t addr, uint8_t *buf, uint16_
             goto WRITE_EXIT;
     }
 
+    mark = 1U;
+
 WRITE_EXIT:
-    FLASH_CS_HIGH();                                 //CS 拉高，触发Flash内部烧写
+    FLASH_CS_HIGH();                                 
     if(status != BSP_FLASH_OK)
+    {
+        /* 报文没有完整下发，没有启动Flash内部烧写，手动关闭写使能 */
+        if(mark == 0U)
+        {
+            FLASH_CS_LOW();
+            FLASH_SPI_SendByte(W25Q_CMD_WRITE_DISABLE, &status);
+            FLASH_CS_HIGH();
+        }
         return status;
-
-
-    return FLASH_WaitBusy();                         //循环读 W25Q 状态寄存器,返回状态，等待烧写完成
+    }
+    return FLASH_WaitBusy();                         //等待烧写完成
 }
 
 //Flash扇区擦除
 BSP_Flash_StatusTypeDef BSP_FLASH_EraseSector(uint32_t addr)
 {
     BSP_Flash_StatusTypeDef status;
+    uint8_t mark = 0U;  
 
-    //地址对齐校验
-    if((addr & 0xFFFU) != 0U)
+    //地址对齐 + 地址上限校验
+    if((addr & 0xFFFU) != 0U || (addr > (W25Q_MAX_ADDR - 0xFFFU)) )
     {
         return BSP_FLASH_ERR_PARAM;
     }
@@ -189,18 +240,40 @@ BSP_Flash_StatusTypeDef BSP_FLASH_EraseSector(uint32_t addr)
         return status;
 
     FLASH_CS_LOW();
-    FLASH_SPI_SendByte(W25Q_CMD_SECTOR_ERASE, &status);
-    FLASH_SPI_SendByte((addr >> 16) & 0xffU, &status);
-    FLASH_SPI_SendByte((addr >> 8)  & 0xffU, &status);
-    FLASH_SPI_SendByte(addr & 0xffU, &status);
-
-    FLASH_CS_HIGH();
-
+    
+   FLASH_SPI_SendByte(W25Q_CMD_SECTOR_ERASE, &status);
     if(status != BSP_FLASH_OK)
-        return status;
+        goto ERASE_EXIT;
 
-    // 等待擦除操作完成
-    return FLASH_WaitBusy();
+    FLASH_SPI_SendByte((addr >> 16) & 0xffU, &status);
+    if(status != BSP_FLASH_OK)
+        goto ERASE_EXIT;
+
+    FLASH_SPI_SendByte((addr >> 8)  & 0xffU, &status);
+    if(status != BSP_FLASH_OK)
+        goto ERASE_EXIT;
+
+    FLASH_SPI_SendByte(addr & 0xffU, &status);
+    if(status != BSP_FLASH_OK)
+        goto ERASE_EXIT;
+
+    mark = 1U;
+
+ERASE_EXIT:
+    FLASH_CS_HIGH();
+    
+    if(status != BSP_FLASH_OK)
+    {
+        if(mark == 0U)
+        {
+            FLASH_CS_LOW();
+            FLASH_SPI_SendByte(W25Q_CMD_WRITE_DISABLE, &status);
+            FLASH_CS_HIGH();
+        }
+        return status;
+    }
+  
+    return FLASH_WaitBusy();          // 等待擦除完成
 }
 
 

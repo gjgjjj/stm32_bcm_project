@@ -34,6 +34,9 @@
 #include "bsp_adc.h"
 #include "bsp_gpio.h"
 #include "bsp_uart.h"
+#include "bsp_rtc.h"
+#include "bsp_iwdg.h"
+#include "bsp_test.h"
 
 /* USER CODE END Includes */
 
@@ -106,12 +109,17 @@ int main(void)
   MX_SPI1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+/*****************该部分属于驱动层函数，后续需放入服务层，目前仅作调试临时放置********************/
   BSP_GPIO_Init();
-  BSP_UART_Init();
-  BSP_CAN_Init();
   BSP_ADC_Init();
   BSP_FLASH_Init();
+  BSP_UART_Init();
   
+  BSP_CAN_Prepare();                     
+  //BSP_CAN_SetFilter(0, 0x0000U, 0x0000U, CAN_RX_FIFO0);   //回环模式
+  BSP_CAN_SetFilter(0, 0x123U, 0x7FFU, CAN_RX_FIFO0);
+  BSP_CAN_Start();
+/*****************该部分属于驱动层函数，后续需放入服务层，目前仅作调试临时放置********************/
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -147,9 +155,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE
+                              |RCC_OSCILLATORTYPE_LSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
+  RCC_OscInitStruct.LSEState = RCC_LSE_ON;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
@@ -174,7 +184,7 @@ void SystemClock_Config(void)
     Error_Handler();
   }
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_ADC;
-  PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
+  PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSE;
   PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {

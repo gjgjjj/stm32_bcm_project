@@ -6,83 +6,65 @@
 #include "FreeRTOS.h"
 #include "semphr.h"
 
-extern SemaphoreHandle_t uart1_mutex;
+static SemaphoreHandle_t uart1_mutex;   //静态全局互斥锁，防止多任务同时打印乱码
 
 extern UART_HandleTypeDef huart1;
 
-
 void BSP_UART_Init(void)
 {
-#if 0
-    uart1_mutex = xSemaphoreCreateMutex();
-#endif
+    if(uart1_mutex == NULL)
+    {
+        uart1_mutex = xSemaphoreCreateMutex();
+    }
+}
+
+//完成加锁 + 发送 + 解锁
+static int UART_LockSend(const char *buf, uint16_t len)
+{
+    if(uart1_mutex == NULL)
+    {
+        return -1;
+    }
+    if(xSemaphoreTake(uart1_mutex, pdMS_TO_TICKS(1000U)) != pdTRUE)  // 获取互斥锁，最多等待1000ms
+    {
+        return -1;
+    }
+
+    HAL_StatusTypeDef st = HAL_UART_Transmit(&huart1, (uint8_t*)buf, len, 1000U);   //拿锁后，执行串口阻塞发送
+
+    xSemaphoreGive(uart1_mutex);    // 释放互斥锁
+    return (st == HAL_OK) ? 0 : -1;
 }
 
 void UART_SendString(const char *str)
 {
-    if(str == NULL)
-    {
-        return;
-    }
+    if(str == NULL) return;
     uint16_t len = (uint16_t)strlen(str);
-    if(len == 0U)
-    {
-        return;
-    }
-
-    /* RTOS互斥锁保护*/
-#if 1
-    if(xSemaphoreTake(uart1_mutex, pdMS_TO_TICKS(1000U)) != pdTRUE)
-        return;
-#endif
-
-    HAL_StatusTypeDef status = HAL_UART_Transmit(&huart1, (uint8_t *)str, len, 1000U);
-    (void)status;   
-
-#if 1
-    xSemaphoreGive(uart1_mutex);
-#endif
+    if(len == 0U) return;
+    (void)UART_LockSend(str, len);
 }
-
 
 void UART_Printf(const char *format, ...)
 {
-    if(format == NULL)
-    {
-        return;
-    }
+    if(format == NULL) return;
 
-    char buf[128];
+    static char buf[128];    //格式化输出的缓冲区
     va_list ap;
     va_start(ap, format);
     int ret_len = vsnprintf(buf, sizeof(buf), format, ap);
     va_end(ap);
 
-    if(ret_len < 0)
-    {
-        return;
-    }
+    if(ret_len < 0) return;    //格式化失败，直接退出
 
-    size_t send_len;
-
+    uint16_t send_len;
     if((size_t)ret_len >= sizeof(buf))
     {
-        send_len = sizeof(buf) - 1U;
+        send_len = sizeof(buf)-1U;   //过长截断，留1字节给结束符\0
     }
     else
     {
-        send_len = (size_t)ret_len;
+        send_len = (uint16_t)ret_len;
     }
 
-#if 1
-    if(xSemaphoreTake(uart1_mutex, pdMS_TO_TICKS(1000U)) != pdTRUE)
-        return;
-#endif
-
-    HAL_StatusTypeDef status = HAL_UART_Transmit(&huart1, (uint8_t *)buf, (uint16_t)send_len, 1000U);
-    (void)status;
-
-#if 1
-    xSemaphoreGive(uart1_mutex);
-#endif
+    (void)UART_LockSend(buf, send_len);
 }
