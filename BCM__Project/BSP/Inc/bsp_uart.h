@@ -3,15 +3,12 @@
 
 #include "stm32f1xx_hal.h"
 
-void BSP_UART_Init(void);                   //串口外设初始化
-void UART_SendString(const char *str);            //发送字符串
-void UART_Printf(const char *format, ...);  //格式化打印输出
+void BSP_UART_Init(void);
+int BSP_UART_RawSend(const uint8_t *buf, uint16_t len, uint32_t timeout);
+int BSP_UART_RawRecv(uint8_t *buf, uint16_t len, uint32_t timeout);
+void BSP_UART_Stop(void);
 
 #endif
-
-
-
-
 
 
 

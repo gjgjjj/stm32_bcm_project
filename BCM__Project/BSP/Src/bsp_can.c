@@ -1,30 +1,33 @@
 #include "bsp_can.h"
-#include "FreeRTOS.h"
-#include "queue.h"
-#include "task.h"
-
 
 extern CAN_HandleTypeDef hcan;
 
-QueueHandle_t can_rx_queue;
+static BSP_CAN_RxCallback_t can_rx_cb = NULL;   //静态全局回调指针
 
+static uint8_t started = 0U;     
+static uint8_t prepared = 0U;
+
+void BSP_CAN_RegisterRxCallback(BSP_CAN_RxCallback_t cb)
+{
+    can_rx_cb = cb;
+}
 
 void BSP_CAN_Prepare(void)
 {
-    static uint8_t prepared = 0U;
     if(prepared != 0U)
         return;
 
-    if(can_rx_queue == NULL)
-    {
-        can_rx_queue = xQueueCreate(8, sizeof(CAN_Message_t));
-    }
     prepared = 1U;
 }
 
 
 uint8_t BSP_CAN_SetFilter(uint8_t bank,uint32_t id,uint32_t mask,uint8_t fifo)
 {
+    if(bank >= 14U || fifo > 1U)
+    {
+        return 0U;
+    }
+
     CAN_FilterTypeDef sFilterConfig = {0};
     sFilterConfig.FilterBank = bank;
     sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
@@ -48,7 +51,6 @@ uint8_t BSP_CAN_SetFilter(uint8_t bank,uint32_t id,uint32_t mask,uint8_t fifo)
 
 void BSP_CAN_Start(void)
 {
-    static uint8_t started = 0U;
     if(started !=0U)
         return;
 
@@ -57,10 +59,22 @@ void BSP_CAN_Start(void)
     started = 1U;
 }
 
-// 发送一帧标准CAN报文  1:成功  0:失败
-uint8_t CAN_SendMessage(CAN_Message_t *msg)
+void BSP_CAN_Stop(void)
+{
+    __HAL_CAN_DISABLE_IT(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
+    HAL_CAN_Stop(&hcan);
+    started = 0U;
+}
+
+// BSP底层原始发送接口  1:成功  0:失败
+uint8_t BSP_CAN_SendRawMessage(const CAN_Message_t *msg)
 {
     if(msg == NULL)
+    {
+        return 0U;
+    }
+
+    if(msg->dlc > 8U)
     {
         return 0U;
     }
@@ -81,24 +95,8 @@ uint8_t CAN_SendMessage(CAN_Message_t *msg)
 }
 
 
-// 从接收队列读取一帧报文   1:读到报文 0:队列为空/失败
-uint8_t CAN_ReceiveMessage(CAN_Message_t *msg)
-{
-    if(msg == NULL)
-    {
-        return 0U;
-    }
-
-    if(xQueueReceive(can_rx_queue, msg, 0U) == pdPASS)   //非阻塞读取，不等待，没有报文直接返回
-    {
-        return 1U;
-    }
-    return 0U;
-}
-
-
 //获取CAN控制器错误状态     状态码 OK/WARNING/BUSOFF
-CAN_ErrorState_t CAN_GetErrorState(void)
+CAN_ErrorState_t BSP_CAN_GetErrorState(void)
 {
     uint32_t err_flag = hcan.Instance->ESR;    //读取错误状态寄存器
 
@@ -115,29 +113,25 @@ CAN_ErrorState_t CAN_GetErrorState(void)
 
 
 
-//CAN FIFO0接收中断回调   硬件读取、封装消息、入队
+//CAN FIFO0接收中断回调   硬件读取、封装消息
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)  
 {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;     //初始标记：没有唤醒高优先级任务
     CAN_RxHeaderTypeDef rx_header;
-    CAN_Message_t rx_msg;
-
-    if(can_rx_queue == NULL)
-    {
-        return;
-    }
+    CAN_Message_t rx_msg = {0};
 
     if(HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rx_header, rx_msg.data) == HAL_OK)
     {
-        rx_msg.id        = rx_header.StdId;
-        rx_msg.dlc       = rx_header.DLC;
-        rx_msg.timestamp = xTaskGetTickCountFromISR();  //中断里获取系统节拍，作为接收时间戳，ms
+        if(rx_header.DLC > 8U)
+        {
+            return;
+        }
+        rx_msg.id  = rx_header.StdId;
+        rx_msg.dlc = rx_header.DLC;
 
-        //把rx_msg整个拷贝进can_rx_queue队列
-        //如果唤醒的任务任务优先级更高，修改 xHigherPriorityTaskWoken = pdTRUE
-        xQueueSendFromISR(can_rx_queue, &rx_msg, &xHigherPriorityTaskWoken);  
+        if(can_rx_cb != NULL)
+        {
+            can_rx_cb(&rx_msg);
+        }
     }
-    //看标记，如果pdTRUE，中断退出瞬间触发任务切换
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 

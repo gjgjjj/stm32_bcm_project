@@ -251,7 +251,8 @@ uint16_t ADC_GetValue(void);
 
 ### 3.5 CAN驱动模块
 #### 3.5.1 功能描述
-负责 STM32 bxCAN 外设的初始化、过滤器配置与标准 CAN 帧收发，仅处理硬件层面的报文收发、过滤器管理与错误状态读取。报文 ID 解析、信号拆解、业务处理均由服务层 CAN 协议解析模块实现，BSP 层不感知报文内容与业务含义。
+负责 STM32 bxCAN 外设的准备、过滤器配置、硬件启动停止、标准 CAN 帧原始发送、接收事件上报、控制器错误状态读取。
+> BSP 层职责边界：仅操作硬件外设，不实现软件消息队列、不做报文缓存；收到报文通过函数指针回调通知上层服务模块。报文缓存、队列、超时接收、ID 解析、信号拆解、业务处理全部交由服务层 CAN 模块实现；BSP 不感知报文业务含义。
 
 #### 3.5.2 硬件配置
 | 参数项 | 配置值 |
@@ -275,46 +276,32 @@ typedef struct
     uint32_t timestamp;   // 接收时间戳（ms）
 } CAN_Message_t;
 ```
-**接口说明：**
-1. `BSP_CAN_Prepare()`：完成外设、引脚初始化，**不开启 CAN 控制器**；过滤器必须在 Start 之前配置完成。
-2. `BSP_CAN_SetFilter()`：硬件过滤器配置接口，支持掩码模式，用于过滤总线上不需要的报文；**必须在 BSP_CAN_Start 调用前完成配置**，过滤器配置完成之后再启动 CAN 控制器。
-3. `BSP_CAN_Start()`：使能 CAN 控制器，开始收发报文。
+回调函数指针类型定义：
+`typedef void (*BSP_CAN_RxCallback_t)(const CAN_Message_t *p_msg);`
 #### 3.5.4 接口设计
 ```
 void BSP_CAN_Prepare(void);
-uint8_t BSP_CAN_SetFilter(uint8_t bank,uint32_t id,uint32_t mask,uint8_t fifo); //设置CAN过滤器
-void BSP_CAN_Start(void);
-uint8_t CAN_SendMessage(CAN_Message_t *msg);    //发送一帧标准CAN报文
-uint8_t CAN_ReceiveMessage(CAN_Message_t *msg); //读取接收队列中的一帧CAN报文
-CAN_ErrorState_t CAN_GetErrorState(void);       //获取CAN控制器当前错误状态
+void BSP_CAN_RegisterRxCallback(BSP_CAN_RxCallback_t cb);          //注册接收事件回调
+uint8_t BSP_CAN_SetFilter(uint8_t bank,uint32_t id,uint32_t mask,uint8_t fifo); //硬件过滤器配置
+void BSP_CAN_Start(void);                                           //启动CAN控制器，使能接收中断
+void BSP_CAN_Stop(void);                                            //停止CAN控制器，关闭接收中断
+uint8_t BSP_CAN_SendRawMessage(const CAN_Message_t *msg);           //底层原始报文发送
+CAN_ErrorState_t BSP_CAN_GetErrorState(void);                       //获取CAN控制器硬件错误状态
 ```
-#### 3.5.5 接收流程
-CAN 接收采用「中断 + 队列」架构，保证实时性且避免中断上下文过长：
-```
-CAN RX 接收中断
-        ↓
-CAN硬件过滤器校验（硬件层过滤，丢弃不匹配报文）
-        ↓
-读取硬件FIFO，组装为CAN_Message_t
-        ↓
-写入FreeRTOS消息队列
-        ↓
-CAN Task 阻塞读取队列并处理
-```
-中断上下文严格限制操作范围，禁止执行以下操作：
-- 报文协议解析、信号拆解；
-- 修改全局业务状态；
-- Flash 读写、串口打印等阻塞操作；
-- 调用互斥锁、延时等 RTOS 阻塞 API。
+**接口说明：**
+1. `BSP_CAN_Prepare()`：完成外设、引脚初始化，**不开启 CAN 控制器**；过滤器必须在 Start 之前配置完成。
+2. `BSP_CAN_SetFilter()`硬件过滤器**必须在`BSP_CAN_Start()`之前调用配置**；
+3. 启动前需要调用`BSP_CAN_RegisterRxCallback()`注册接收回调函数，否则收到报文直接丢弃。
+   
   
 ### 3.6 UART 驱动模块
 #### 3.6.1 功能描述
-负责串口调试通道的驱动封装，主要用于：
-- 系统分级调试日志输出；
-- 故障信息打印；
-- 运行状态观测与问题定位。
+负责串口调试通道的 BSP 硬件驱动封装，仅完成底层硬件收发能力：
+- 向上层服务层提供原始阻塞发送、阻塞接收硬件接口；
+- 不实现格式化、多任务互斥保护、数据缓存逻辑；
+- 上层基于本驱动实现系统分级调试日志输出、故障信息打印、运行状态观测与问题定位。
 
-仅作为调试通道，不承载核心业务数据传输。
+本串口仅作为调试通道，不承载核心业务数据传输。
 
 #### 3.6.2 硬件配置
 
@@ -328,9 +315,10 @@ CAN Task 阻塞读取队列并处理
 
 #### 3.6.3 接口设计
 ```
-void BSP_UART_Init(void);                   //串口外设初始化
-void UART_SendString(char *str);            //发送字符串
-void UART_Printf(const char *format, ...);  //格式化打印输出
+void BSP_UART_Init(void);                          //串口BSP占位初始化，硬件初始化由CubeMX完成
+int BSP_UART_RawSend(const uint8_t *buf, uint16_t len, uint32_t timeout);  //底层阻塞发送
+int BSP_UART_RawRecv(uint8_t *buf, uint16_t len, uint32_t timeout);        //底层阻塞接收
+void BSP_UART_Stop(void);                          //反初始化，关闭串口外设
 ```
 
 ### 3.7 SPI Flash 驱动模块
