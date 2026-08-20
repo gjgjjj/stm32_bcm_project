@@ -786,25 +786,6 @@ W25Q64硬件存储
 - 读取时校验数据完整性；
 - 校验失败的记录自动丢弃，避免异常数据导致逻辑错误。
 
-#### 5.4.3 故障记录结构
-```
-typedef struct
-{
-    uint8_t  fault_code;    // 故障码
-    uint8_t  status;        // 0x00=故障消除，0x01=故障激活
-    uint32_t timestamp;     // 事件发生时间戳
-    uint8_t  checksum;      // 校验字节
-} Fault_Record_t ;
-```
-#### 5.4.4 故障环形缓冲区
-采用固定大小数组实现环形缓冲区, 写指针循环覆盖。
-```
-#define FAULT_BUFFER_SIZE   32
-Fault_Record_t fault_buffer[FAULT_BUFFER_SIZE];
-uint8_t fault_write_index;
-```
-
-
 ### 5.7 日志服务模块
   
 | 等级  | 用途                                   |

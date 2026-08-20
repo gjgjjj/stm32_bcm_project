@@ -56,7 +56,7 @@ static void CAN_Protocol_RxIsrCallback(const CAN_Message_t *rx_msg)
     }
 
     CAN_Message_t msg_cache = *rx_msg;
-    msg_cache.timestamp = osal_get_ms();
+    msg_cache.timestamp = osal_get_ms_from_isr();
     (void)osal_queue_send_from_isr(can_rx_queue_handle, &msg_cache);  //将报文拷进CAN接收队列
 }
 
