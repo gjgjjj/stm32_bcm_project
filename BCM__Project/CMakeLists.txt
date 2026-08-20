@@ -41,7 +41,17 @@ add_executable(${CMAKE_PROJECT_NAME}
     BSP/Inc/bsp_flash.h
     BSP/Inc/bsp_iwdg.h
     BSP/Inc/bsp_test.h
-    )
+
+    OSAL/Inc/osal.h
+
+    Service/Inc/key_manager.h
+    Service/Inc/signal_filter.h
+    Service/Inc/fault_manager.h
+    Service/Inc/can_protocol.h
+    Service/Inc/storage_manager.h
+    Service/Inc/log_service.h
+    Service/Inc/executor_diag.h
+)
 
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
@@ -62,12 +72,24 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     BSP/Src/bsp_flash.c
     BSP/Src/bsp_iwdg.c
     BSP/Src/bsp_test.c
+
+    OSAL/Src/osal.c
+
+    Service/Src/key_manager.c
+    Service/Src/signal_filter.c
+    Service/Src/fault_manager.c
+    Service/Src/can_protocol.c
+    Service/Src/storage_manager.c
+    Service/Src/log_service.c
+    Service/Src/executor_diag.c
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     BSP/Inc
+    Service/Inc
+    OSAL/Inc
 )
 
 # Add project symbols (macros)

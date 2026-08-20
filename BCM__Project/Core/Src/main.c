@@ -114,8 +114,7 @@ int main(void)
   BSP_ADC_Init();
   BSP_FLASH_Init();
   BSP_UART_Init();
-  
-  BSP_CAN_Prepare();                     
+                      
   //BSP_CAN_SetFilter(0, 0x0000U, 0x0000U, CAN_RX_FIFO0);   //回环模式
   BSP_CAN_SetFilter(0, 0x123U, 0x7FFU, CAN_RX_FIFO0);
   BSP_CAN_Start();

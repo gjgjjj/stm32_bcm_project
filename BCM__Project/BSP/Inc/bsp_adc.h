@@ -4,7 +4,7 @@
 #include "stm32f1xx_hal.h"
 
 void BSP_ADC_Init(void);
-uint16_t ADC_GetValue(void);
+uint16_t BSP_ADC_GetValue(void);
 
 #endif
 

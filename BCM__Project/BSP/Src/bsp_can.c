@@ -2,24 +2,9 @@
 
 extern CAN_HandleTypeDef hcan;
 
-static BSP_CAN_RxCallback_t can_rx_cb = NULL;   //静态全局回调指针
+static BSP_CAN_RxCallback_t can_rx_cb = NULL;   //回调指针  存上层回调函数的地址
 
 static uint8_t started = 0U;     
-static uint8_t prepared = 0U;
-
-void BSP_CAN_RegisterRxCallback(BSP_CAN_RxCallback_t cb)
-{
-    can_rx_cb = cb;
-}
-
-void BSP_CAN_Prepare(void)
-{
-    if(prepared != 0U)
-        return;
-
-    prepared = 1U;
-}
-
 
 uint8_t BSP_CAN_SetFilter(uint8_t bank,uint32_t id,uint32_t mask,uint8_t fifo)
 {
@@ -112,6 +97,11 @@ CAN_ErrorState_t BSP_CAN_GetErrorState(void)
 }
 
 
+void BSP_CAN_RegisterRxCallback(BSP_CAN_RxCallback_t cb)
+{
+    can_rx_cb = cb;    // 将上层回调函数的地址存入指针
+}
+
 
 //CAN FIFO0接收中断回调   硬件读取、封装消息
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)  
@@ -130,8 +120,10 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
         if(can_rx_cb != NULL)
         {
-            can_rx_cb(&rx_msg);
+            can_rx_cb(&rx_msg);  //执行CAN协议模块内的回调函数，将报文拷入队列
         }
     }
 }
+
+
 
