@@ -341,7 +341,7 @@ CAN 外设进入 Bus-Off 状态后，硬件自动停止所有报文发送，仅�
 
 CAN总线异常离线时，BCM自动执行以下安全策略：
 - 所有继电器输出强制断开（RELAY_LIGHT=0，RELAY_LOCK=0）；
-- RGB_RED常亮，RGB_GREEN、RGB_BLUE熄灭；
+- RGB_RED常亮，RGB_GREEN熄灭；
 - BEEP按严重故障报警节奏鸣响；
 - 保留本地按键控制功能（灯光、门锁、故障清除仍可操作）；
 - 总线恢复后自动同步当前执行器状态。
