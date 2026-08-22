@@ -2,12 +2,12 @@
 #define __CAN_PROTOCOL_H
 
 #include <stdint.h>
-#include "bsp_can.h"
 #include "osal.h"
+#include "bsp_can.h"
 
-#define CAN_CMD_LIGHT            0x011U    //灯光控制指令
-#define CAN_CMD_LOCK             0x012U    //门锁控制指令
-#define CAN_CMD_FAULT_CLEAR      0x013U    //故障清除指令
+#define CAN_CMD_LIGHT            0x21U    //灯光控制指令
+#define CAN_CMD_LOCK             0x41U    //门锁控制指令
+#define CAN_CMD_FAULT_CLEAR      0x62U    //故障清除指令
 
 typedef struct
 {
@@ -32,17 +32,24 @@ void CAN_Protocol_SetRxQueue(osal_queue_t rx_queue);
 //p_cmd 输出：解析成功后的控制指令
 uint8_t CAN_Protocol_ParseMessage(const CAN_Message_t *rx_msg, CAN_Command_t *p_cmd);
 
-//组包设备心跳报文（ID:0x020）
+//组包设备心跳报文
 uint8_t CAN_Protocol_Heartbeat(CAN_Message_t *tx_msg, uint8_t state);
 
-//组包车灯状态报文（ID:0x031）
+//组包车灯状态报文
 uint8_t CAN_Protocol_LightStatus(CAN_Message_t *tx_msg, uint8_t state);
 
-//组包门锁状态报文（ID:0x041）
+//组包门锁状态报文
 uint8_t CAN_Protocol_DoorLockStatus(CAN_Message_t *tx_msg, uint8_t state);
 
-//组包故障事件报文（ID:0x003）
+//组包故障事件报文
 uint8_t CAN_Protocol_FaultEvent(CAN_Message_t *tx_msg, uint8_t fault_id, uint8_t fault_st);
+
+
+//组包+发送，带互斥锁保护
+uint8_t CAN_Protocol_SendHeartbeat(uint8_t state);
+uint8_t CAN_Protocol_SendLightStatus(uint8_t state);
+uint8_t CAN_Protocol_SendDoorLockStatus(uint8_t state);
+uint8_t CAN_Protocol_SendFaultEvent(uint8_t fault_id, uint8_t fault_st);
 
 
 #endif

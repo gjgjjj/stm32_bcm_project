@@ -1,6 +1,38 @@
 #include "osal.h"
 #include "task.h"
 
+uint8_t osal_task_create(void (*task_func)(void *),
+                        const char *name,
+                        uint32_t stack_size,
+                        void *arg,
+                        uint8_t priority,
+                        osal_task_handle_t *handle_out)
+{
+    TaskHandle_t xHandle = NULL;
+
+    configSTACK_DEPTH_TYPE stack_depth = (configSTACK_DEPTH_TYPE)(stack_size / sizeof(StackType_t));
+
+    BaseType_t ret = xTaskCreate(task_func,
+                                 name,
+                                 stack_depth,
+                                 arg,
+                                 priority,
+                                 &xHandle);
+
+    if(ret != pdPASS)
+    {
+        return 0U;
+    }
+
+    if(handle_out != NULL)
+    {
+        *handle_out = xHandle;
+    }
+
+    return 1U;
+}
+
+
 /********************************互斥锁接口*****************************/
 
 void osal_mutex_create(osal_mutex_t *m)                  //m 传入osal_mutex_t结构体指针，调用方提供内存
@@ -58,7 +90,8 @@ void osal_mutex_delete(osal_mutex_t *m)                 // m 互斥锁指针 、
 
 /******************************消息队列接口*************************************/
 
-osal_queue_t osal_queue_create(uint32_t count, uint32_t item_size)   //count 队列深度、item_size 单个元素字节大小
+//count 队列深度、item_size 单个元素字节大小
+osal_queue_t osal_queue_create(uint32_t count, uint32_t item_size)   
 {
     if (count == 0U || item_size == 0U)
     {
@@ -140,9 +173,9 @@ void osal_queue_delete(osal_queue_t q)
 
 
 /******************************时间与延时接口*************************************/
-uint32_t osal_get_ms(void)                   // 依赖 configTICK_RATE_HZ == 1000，1 tick = 1 ms
+uint32_t osal_get_ms(void)                   
 {
-    return (uint32_t)xTaskGetTickCount();    //返回系统 tick 计数器，每 1ms 自增一次
+    return (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);    
 }
 
 void osal_msleep(uint32_t ms)
@@ -152,7 +185,7 @@ void osal_msleep(uint32_t ms)
 
 uint32_t osal_get_ms_from_isr(void)
 {
-    return (uint32_t)xTaskGetTickCountFromISR();
+    return (uint32_t)(xTaskGetTickCountFromISR() * portTICK_PERIOD_MS);
 }
 
 

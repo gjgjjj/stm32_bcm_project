@@ -2,10 +2,10 @@
 #include <string.h>
 #include "log_service.h"
 
-#define CAN_TX_ID_HEARTBEAT        0x020U
-#define CAN_TX_ID_LIGHT_STATUS     0x031U
-#define CAN_TX_ID_DOOR_STATUS      0x041U
-#define CAN_TX_ID_FAULT_EVENT      0x003U
+#define CAN_TX_ID_HEARTBEAT        0x100U
+#define CAN_TX_ID_LIGHT_STATUS     0x122U
+#define CAN_TX_ID_DOOR_STATUS      0x142U
+#define CAN_TX_ID_FAULT_EVENT      0x61U
 
 static uint8_t raw_fault_flag;        // 【硬件总线故障标记】0异常(BUSOFF/WARNING)，1正常
 
@@ -14,12 +14,14 @@ static osal_queue_t can_rx_queue_handle = NULL;
 
 static CAN_ErrorState_t can_err_state;
 
+static osal_mutex_t can_tx_mutex;
 
 void CanProtocol_Init(void)
 {
     raw_fault_flag = 1U;         //硬件默认正常
     can_err_state = CAN_ERR_OK;
     can_rx_queue_handle = NULL;
+    osal_mutex_create(&can_tx_mutex);
 }
 
 
@@ -103,7 +105,7 @@ uint8_t CAN_Protocol_ParseMessage(const CAN_Message_t *rx_msg, CAN_Command_t *p_
         case CAN_CMD_FAULT_CLEAR:
             if ((sig_value != 0x00U) && (sig_value != 0x01U))
             {
-                Log_Print(LOG_ERROR, "CAN报文解析错误：信号值非法，value:0x%02X", sig_value);
+                Log_Print(LOG_ERROR, "CAN报文解析错误：非法信号值:0x%02X", sig_value);
                 return 3U;
             }
             break;
@@ -131,7 +133,7 @@ uint8_t CAN_Protocol_ParseMessage(const CAN_Message_t *rx_msg, CAN_Command_t *p_
 }
 
 
- //组包设备心跳报文（ID:0x020）
+//组包设备心跳报文
 uint8_t CAN_Protocol_Heartbeat(CAN_Message_t *tx_msg, uint8_t state)
 {
     if (tx_msg == NULL)
@@ -147,7 +149,7 @@ uint8_t CAN_Protocol_Heartbeat(CAN_Message_t *tx_msg, uint8_t state)
     return 1U;
 }
 
-//组包车灯状态报文（ID:0x031）
+//组包车灯状态报文
 uint8_t CAN_Protocol_LightStatus(CAN_Message_t *tx_msg, uint8_t state)
 {
     if (tx_msg == NULL)
@@ -163,7 +165,7 @@ uint8_t CAN_Protocol_LightStatus(CAN_Message_t *tx_msg, uint8_t state)
     return 1U;
 }
 
-//组包门锁状态报文（ID:0x041）
+//组包门锁状态报文
 uint8_t CAN_Protocol_DoorLockStatus(CAN_Message_t *tx_msg, uint8_t state)
 {
     if (tx_msg == NULL)
@@ -179,7 +181,7 @@ uint8_t CAN_Protocol_DoorLockStatus(CAN_Message_t *tx_msg, uint8_t state)
     return 1U;
 }
 
-//组包故障事件报文（ID:0x003）
+//组包故障事件报文
 uint8_t CAN_Protocol_FaultEvent(CAN_Message_t *tx_msg, uint8_t fault_id, uint8_t fault_st)
 {
     if (tx_msg == NULL)
@@ -189,11 +191,87 @@ uint8_t CAN_Protocol_FaultEvent(CAN_Message_t *tx_msg, uint8_t fault_id, uint8_t
 
     memset(tx_msg, 0, sizeof(CAN_Message_t));
     tx_msg->id = CAN_TX_ID_FAULT_EVENT;      
-    tx_msg->dlc = 3U;          
+    tx_msg->dlc = 2U;          
     tx_msg->data[0] = fault_id;    // 故障码
     tx_msg->data[1] = fault_st;    // 故障状态
     return 1U;
 }
 
 
+uint8_t CAN_Protocol_SendHeartbeat(uint8_t state)
+{
+    CAN_Message_t msg;
+    if(CAN_Protocol_Heartbeat(&msg, state) != 1U)
+    {
+        return 0U;
+    }
 
+    //进入临界区，保护CAN硬件发送邮箱
+    if(osal_mutex_take(&can_tx_mutex, 10U) != 1U)
+    {
+        Log_Print(LOG_ERROR,"CAN发送获取互斥锁超时\r\n");
+        return 0U;
+    }
+
+    uint8_t ret = BSP_CAN_SendRawMessage(&msg);
+
+    osal_mutex_give(&can_tx_mutex);
+    return ret;
+}
+
+uint8_t CAN_Protocol_SendLightStatus(uint8_t state)
+{
+    CAN_Message_t msg;
+    if(CAN_Protocol_LightStatus(&msg, state) != 1U)
+    {
+        return 0U;
+    }
+
+    if(osal_mutex_take(&can_tx_mutex, 10U) != 1U)
+    {
+        Log_Print(LOG_ERROR,"CAN发送获取互斥锁超时\r\n");
+        return 0U;
+    }
+
+    uint8_t ret = BSP_CAN_SendRawMessage(&msg);
+    osal_mutex_give(&can_tx_mutex);
+    return ret;
+}
+
+uint8_t CAN_Protocol_SendDoorLockStatus(uint8_t state)
+{
+    CAN_Message_t msg;
+    if(CAN_Protocol_DoorLockStatus(&msg, state) != 1U)
+    {
+        return 0U;
+    }
+
+    if(osal_mutex_take(&can_tx_mutex, 10U) != 1U)
+    {
+        Log_Print(LOG_ERROR,"CAN发送获取互斥锁超时\r\n");
+        return 0U;
+    }
+
+    uint8_t ret = BSP_CAN_SendRawMessage(&msg);
+    osal_mutex_give(&can_tx_mutex);
+    return ret;
+}
+
+uint8_t CAN_Protocol_SendFaultEvent(uint8_t fault_id, uint8_t fault_st)
+{
+    CAN_Message_t msg;
+    if(CAN_Protocol_FaultEvent(&msg, fault_id, fault_st) != 1U)
+    {
+        return 0U;
+    }
+
+    if(osal_mutex_take(&can_tx_mutex, 10U) != 1U)
+    {
+        Log_Print(LOG_ERROR,"CAN发送获取互斥锁超时\r\n");
+        return 0U;
+    }
+    
+    uint8_t ret = BSP_CAN_SendRawMessage(&msg);
+    osal_mutex_give(&can_tx_mutex);
+    return ret;
+}
