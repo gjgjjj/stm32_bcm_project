@@ -22,7 +22,8 @@ uint8_t StorageMgr_Init(void);
 uint8_t StorageMgr_WriteFaultLog(const Fault_Record_t *rec);
 
 
-//读取所有有效的历史故障日志
+//读取所有有效的历史故障日志    返回读取到有效故障记录条数
+//*buf  调用方创建的内存数组      max_cnt 数组最大可存故障条数
 uint16_t StorageMgr_ReadAllFault(Fault_Record_t *buf, uint16_t max_cnt);
 
 

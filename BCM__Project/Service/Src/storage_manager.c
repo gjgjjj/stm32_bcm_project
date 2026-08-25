@@ -1,13 +1,14 @@
 #include "storage_manager.h"
 #include "bsp_flash.h"
+#include "log_service.h"
 #include <stdint.h>
 #include <string.h>
 
 
 #define STORAGE_LOG_START_ADDR      0x001000U    //故障日志起始Flash地址，4KB扇区
-#define STORAGE_LOG_SECTOR_SIZE     4096U
-#define STORAGE_RECORD_LEN          7U           //单条记录序列化字节长度
-#define STORAGE_MAX_RECORD_CNT      (STORAGE_LOG_SECTOR_SIZE / STORAGE_RECORD_LEN)
+#define STORAGE_RECORD_LEN          8U           //单条记录序列化字节长度
+#define STORAGE_RECORD_MAGIC        0x66U
+#define STORAGE_MAX_RECORD_CNT      200U 
 
 static uint16_t write_index;            //下一条要写入的记录下标 0 ~ STORAGE_MAX_RECORD_CNT‑1
 static uint8_t storage_init = 0;        //模块初始化标志
@@ -32,23 +33,27 @@ static uint8_t StorageMgr_Checksum(const Fault_Record_t *rec)
 //结构体 → 字节数组序列化
 static void StorageMgr_Serialize(const Fault_Record_t *rec, uint8_t *out_buf)
 {
-    out_buf[0] = rec->fault_code;
-    out_buf[1] = rec->status;
-    out_buf[2] = (rec->timestamp >> 0) & 0xFFU;
-    out_buf[3] = (rec->timestamp >> 8) & 0xFFU;
-    out_buf[4] = (rec->timestamp >> 16) & 0xFFU;
-    out_buf[5] = (rec->timestamp >> 24) & 0xFFU;
-    out_buf[6] = rec->checksum;
+    out_buf[0] = STORAGE_RECORD_MAGIC;    //头部魔数标记本条记录有效
+    out_buf[1] = rec->fault_code;
+    out_buf[2] = rec->status;
+    out_buf[3] = (uint8_t)(rec->timestamp >> 0);
+    out_buf[4] = (uint8_t)(rec->timestamp >> 8);
+    out_buf[5] = (uint8_t)(rec->timestamp >> 16);
+    out_buf[6] = (uint8_t)(rec->timestamp >> 24);
+    out_buf[7] = rec->checksum;
 }
+
 
 //字节数组 → 结构体反序列化
 static void StorageMgr_Deserialize(const uint8_t *in_buf, Fault_Record_t *rec)
 {
-    rec->fault_code  = in_buf[0];
-    rec->status      = in_buf[1];
-    rec->timestamp   = ((uint32_t)in_buf[5] <<24U) | ((uint32_t)in_buf[4] <<16U)
-                     | ((uint32_t)in_buf[3] <<8U)  | ((uint32_t)in_buf[2]);
-    rec->checksum    = in_buf[6];
+    rec->fault_code  = in_buf[1];
+    rec->status      = in_buf[2];
+    rec->timestamp   = ((uint32_t)in_buf[6] << 24U)
+                     | ((uint32_t)in_buf[5] << 16U)
+                     | ((uint32_t)in_buf[4] << 8U)
+                     | ((uint32_t)in_buf[3]);
+    rec->checksum    = in_buf[7];
 }
 
 //上电扫描Flash，定位空闲槽位,定位写指针write_index
@@ -66,22 +71,16 @@ static uint8_t StorageMgr_LoadFromFlash(void)
         BSP_Flash_StatusTypeDef ret = BSP_FLASH_Read(addr, buf, STORAGE_RECORD_LEN);
         if(ret != BSP_FLASH_OK)
         {
-            continue;              //读Flash失败，跳过本槽，继续扫描下一个
+            //读失败，认为此处为空闲槽，从此处开始写
+            write_index = i;
+            Log_Print(LOG_ERROR,"Flash读槽位%u失败，写指针定位到%u\r\n",i,write_index);
+            break;
         }
 
-        //判断是否空闲槽
-        uint8_t empty = 1U;
-        for(uint8_t k = 0; k < STORAGE_RECORD_LEN; k++)
+        //魔数不等于0xA5，代表遇到第一个空闲/损坏槽，后续从这里写入
+        if(buf[0] != STORAGE_RECORD_MAGIC)
         {
-            if(buf[k] != 0xFFU)
-            {
-                empty = 0U;
-                break;
-            }
-        }
-        if(empty != 0U)
-        {
-            write_index = i;        //找到空闲槽，写指针赋值为当前下标，结束扫描
+            write_index = i;
             break;
         }
 
@@ -94,6 +93,7 @@ static uint8_t StorageMgr_LoadFromFlash(void)
     if(i >= STORAGE_MAX_RECORD_CNT)
     {
         write_index = 0U;
+        Log_Print(LOG_INFO,"记录槽全部占满，写指针回0\r\n");
     }
     return 1;
 }
@@ -105,15 +105,18 @@ uint8_t StorageMgr_Init(void)
     if(bsp_ret != BSP_FLASH_OK)
     {
         storage_init = 0;
+        Log_Print(LOG_ERROR,"Flash底层初始化失败\r\n");
         return 0;
     }
     uint8_t load_ret = StorageMgr_LoadFromFlash();
     if(load_ret != 1)
     {
         storage_init = 0;
+        Log_Print(LOG_ERROR,"加载Flash记录失败\r\n");
         return 0;
     }
     storage_init = 1;
+    Log_Print(LOG_INFO,"存储管理初始化完成，当前写指针:%u\r\n",write_index);
     return 1;
 }
 
@@ -123,6 +126,7 @@ uint8_t StorageMgr_WriteFaultLog(const Fault_Record_t *rec)
 {
     if((!storage_init) || (rec == NULL))
     {
+        Log_Print(LOG_ERROR,"写故障：入参非法或模块未初始化\r\n");
         return 0;
     }
 
@@ -142,18 +146,7 @@ uint8_t StorageMgr_WriteFaultLog(const Fault_Record_t *rec)
     uint8_t need_erase = 0;
     if(write_index == 0U)                                   //准备写第0号槽，判断是否需要擦除扇区
     {
-        uint8_t first_byte;
-        if(BSP_FLASH_Read(STORAGE_LOG_START_ADDR, &first_byte, 1U) == BSP_FLASH_OK)
-        {
-            if(first_byte != 0xFFU)
-            {
-                need_erase = 1;                             //扇区存在旧数据，需要擦除
-            }
-        }
-        else
-        {
-            need_erase = 1;                                 //读失败，保守处理执行擦除
-        }
+        need_erase = 1;                              
     }
 
     if(need_erase == 1)
@@ -161,6 +154,7 @@ uint8_t StorageMgr_WriteFaultLog(const Fault_Record_t *rec)
         BSP_Flash_StatusTypeDef erase_ret = BSP_FLASH_EraseSector(STORAGE_LOG_START_ADDR);
         if(erase_ret != BSP_FLASH_OK)
         {
+            Log_Print(LOG_ERROR,"扇区擦除失败，无法写入故障记录\r\n");
             return 0;                                       //扇区擦除失败，直接返回，不执行写入
         }
     }
@@ -168,6 +162,7 @@ uint8_t StorageMgr_WriteFaultLog(const Fault_Record_t *rec)
     BSP_Flash_StatusTypeDef write_ret = BSP_FLASH_WritePage(write_addr, write_buf, STORAGE_RECORD_LEN);
     if(write_ret != BSP_FLASH_OK)
     {
+        Log_Print(LOG_ERROR,"写Flash槽位%u失败\r\n",write_index);
         return 0;
     }
 
@@ -185,6 +180,7 @@ uint16_t StorageMgr_ReadAllFault(Fault_Record_t *buf, uint16_t max_cnt)
 {
     if((!storage_init) || (buf == NULL) || (max_cnt == 0U))
     {
+        Log_Print(LOG_ERROR,"读故障：入参非法或模块未初始化\r\n");
         return 0;
     }
     uint16_t valid_out_cnt =0U;                  //有效记录条数
@@ -200,20 +196,12 @@ uint16_t StorageMgr_ReadAllFault(Fault_Record_t *buf, uint16_t max_cnt)
         BSP_Flash_StatusTypeDef ret = BSP_FLASH_Read(addr, temp_buf, STORAGE_RECORD_LEN);
         if(ret != BSP_FLASH_OK)
         {
+            Log_Print(LOG_ERROR,"读槽位%u失败，跳过本条记录\r\n",i);
             continue;                            //单条读失败跳过，继续读下一条
         }
 
-        // 全字节为0xFF才判定为空槽，结束读取
-        uint8_t empty = 1U;
-        for(uint8_t k = 0; k < STORAGE_RECORD_LEN; k++)
-        {
-            if(temp_buf[k] != 0xFFU)
-            {
-                empty = 0U;
-                break;
-            }
-        }
-        if(empty != 0U)
+        // 第一个字节不是魔数，代表后面没有有效业务记录，结束读取
+        if(temp_buf[0] != STORAGE_RECORD_MAGIC)
         {
             break;
         }
@@ -226,7 +214,12 @@ uint16_t StorageMgr_ReadAllFault(Fault_Record_t *buf, uint16_t max_cnt)
             buf[valid_out_cnt] = tmp_rec;
             valid_out_cnt ++;
         }
+        else
+        {
+            Log_Print(LOG_ERROR,"槽位%u校验和错误，丢弃记录\r\n",i);
+        }
     }
+    Log_Print(LOG_INFO,"读取完成，有效故障记录条数：%u\r\n",valid_out_cnt);
     return valid_out_cnt;
 }
 
@@ -235,11 +228,13 @@ uint8_t StorageMgr_ClearAllFault(void)
 {
     if(!storage_init)
     {
+        Log_Print(LOG_ERROR,"清除故障记录：模块未初始化\r\n");
         return 0;
     }
     BSP_Flash_StatusTypeDef ret = BSP_FLASH_EraseSector(STORAGE_LOG_START_ADDR);
     if(ret != BSP_FLASH_OK)
     {
+        Log_Print(LOG_ERROR,"清除故障记录:扇区擦除失败\r\n");
         return 0;
     }
     write_index = 0U;                  //擦除成功，写指针复位

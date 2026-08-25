@@ -36,7 +36,10 @@
 #include "bsp_uart.h"
 #include "bsp_rtc.h"
 #include "bsp_iwdg.h"
-#include "bsp_test.h"
+#include "test.h"
+
+#include "log_service.h"
+#include "can_protocol.h"
 
 /* USER CODE END Includes */
 
@@ -98,6 +101,8 @@ int main(void)
 
   /* USER CODE BEGIN SysInit */
 
+  //hrtc.Init.OutPut = RTC_OUTPUTSOURCE_NONE; //cubeMX重置需改此配置  rtc.c中
+
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -111,14 +116,31 @@ int main(void)
   /* USER CODE BEGIN 2 */
 /*****************该部分属于驱动层函数，后续需放入服务层，目前仅作调试临时放置********************/
   BSP_GPIO_Init();
-  BSP_ADC_Init();
   BSP_FLASH_Init();
-  BSP_UART_Init();
                       
-  //BSP_CAN_SetFilter(0, 0x0000U, 0x0000U, CAN_RX_FIFO0);   //回环模式
-  BSP_CAN_SetFilter(0, 0x123U, 0x7FFU, CAN_RX_FIFO0);
-  BSP_CAN_Start();
 /*****************该部分属于驱动层函数，后续需放入服务层，目前仅作调试临时放置********************/
+
+  #if ENABLE_TEST_CODE
+
+  Log_Service_Init();        //日志互斥锁创建
+  CanProtocol_Init();        //内部创建互斥锁
+
+  BSP_CAN_SetFilter(0, 0x000, 0x000, CAN_RX_FIFO0);
+  BSP_CAN_Start();
+
+
+  //Test_Osal_CreateTask();           //OSAL日志测试任务
+  //Test_SignalFilter_CreateTask();   //信号滤波测试任务
+  //Test_FaultMgr_CreateTask();       //故障管理测试任务
+  //Test_CanProtocol_CreateTask();    //CAN协议测试任务
+  //Test_CanRx_Link_CreateTask();     //CAN接收链接任务
+  //Test_KeyMgr_CreateTask();         //按键管理测试任务
+  //Test_StorageMgr_CreateTask();     //存储管理模块测试任务
+  //Test_ExecutorDiag_CreateTask();   //执行器诊断模块测试任务
+
+  
+  #endif
+  
   /* USER CODE END 2 */
 
   /* Init scheduler */

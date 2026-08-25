@@ -17,8 +17,8 @@ typedef enum
 // 故障事件类型
 typedef enum
 {
-    FAULT_EVENT_ACTIVE  = 0x01U,     // 故障激活
-    FAULT_EVENT_CLEAR   = 0x00U      // 故障消除
+    FAULT_EVENT_ACTIVE  = 0x00U,     // 故障激活
+    FAULT_EVENT_CLEAR   = 0x01U      // 故障消除
 } FaultEventType_t;
 
 // 对外故障事件结构体，投递至应用层队列

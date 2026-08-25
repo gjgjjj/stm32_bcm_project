@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "FreeRTOS.h"
 #include "semphr.h"
-#include "queue.h"
+
 
 #define OSAL_WAIT_FOREVER       0xFFFFFFFFU     //永久等待，用于锁、队列等待时间参数ms
 
@@ -39,9 +39,12 @@ uint8_t       osal_queue_send_from_isr(osal_queue_t q, const void *data);       
 void          osal_queue_delete(osal_queue_t q);                                //删除队列，释放动态资源
 
 
-uint32_t     osal_get_ms(void);                 //获取系统时间戳，禁止中断调用
+uint32_t     osal_get_ms(void);                 //获取系统ms时间戳，禁止中断调用
+TickType_t   osal_get_tick(void);               //获取系统tick，禁止中断调用
 void         osal_msleep(uint32_t ms);          //延时ms毫秒，仅任务上下文，禁止中断调用
 uint32_t     osal_get_ms_from_isr(void);        //中断上下文获取系统时间戳
+
+void osal_delay_ms_until(TickType_t *last_wake_tick, uint32_t cycle_ms);   //周期延时ms
 
 void* osal_get_current_task(void);              //获取当前任务句柄
 void osal_yield(void);                          //让出CPU，触发一次任务调度

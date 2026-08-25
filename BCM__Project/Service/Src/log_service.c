@@ -9,45 +9,46 @@
 
 static osal_mutex_t log_mutex; 
 
+static LogLevel_t log_output_level = LOG_INFO;
+static uint8_t log_debug_en = 1U;
+static uint8_t log_fault_event_en = 1U;
+
 //日志服务模块初始化，上电调用一次
 void Log_Service_Init(void)
 {
-    (void)osal_mutex_create(&log_mutex);
+    osal_mutex_create(&log_mutex);
 }
 
-//日志打印接口  level 日志等级 、 fmt 格式化字符串 、 ... 可变参数
-void Log_Print(LogLevel_t level, const char *fmt, ...)
+
+void Log_SetOutputLevel(LogLevel_t lvl)
 {
-    if (level < LOG_OUTPUT_LEVEL)
-    {
-        return;
-    }
+    log_output_level = lvl;
+}
 
-    if(fmt == NULL)
-    {
-        return;
-    }
+void Log_SetDebugEnable(uint8_t en)
+{
+    log_debug_en = (en != 0U) ? 1U : 0U;
+}
 
-    if (osal_mutex_take(&log_mutex, 0U) != 0)
-    {
-        return;
-    }
+void Log_SetFaultEventPrintEnable(uint8_t en)
+{
+    log_fault_event_en = (en != 0U) ? 1U : 0U;
+}
 
+// 内部通用发送函数，复用互斥锁和串口 
+static void Log_CommonSend(const char *fmt, va_list ap)
+{
     char tmp_buf[LOG_TMP_BUF_SIZE];
-    va_list ap;
-    va_start(ap, fmt);
-
     int ret_len = vsnprintf(tmp_buf, LOG_TMP_BUF_SIZE, fmt, ap);
-    va_end(ap);
 
     uint16_t send_len;
-    if(ret_len < 0)                                         //格式化错误
+    if(ret_len < 0)
     {
         send_len = 0U;
     }
-    else if((size_t)ret_len >= LOG_TMP_BUF_SIZE)            //内容超出缓冲区，发生截断
+    else if((size_t)ret_len >= LOG_TMP_BUF_SIZE)
     {
-        send_len = (uint16_t)(LOG_TMP_BUF_SIZE - 1U);      
+        send_len = (uint16_t)(LOG_TMP_BUF_SIZE - 1U);
     }
     else
     {
@@ -58,6 +59,58 @@ void Log_Print(LogLevel_t level, const char *fmt, ...)
     {
         (void)BSP_UART_RawSend((const uint8_t *)tmp_buf, send_len, 500U);
     }
+}
+
+
+//普通日志打印接口  level 日志等级 、 fmt 格式化字符串 、 ... 可变参数
+void Log_Print(LogLevel_t level, const char *fmt, ...)
+{
+    if(log_debug_en == 0U)
+    {
+        return;
+    }
+    if(level < log_output_level)
+    {
+        return;
+    }
+    if(fmt == NULL)
+    {
+        return;
+    }
+    if(osal_mutex_take(&log_mutex, 10U) == 0)
+    {
+        return;
+    }
+
+    va_list ap;
+    va_start(ap, fmt);
+    Log_CommonSend(fmt, ap);
+    va_end(ap);
+
+    osal_mutex_give(&log_mutex);
+}
+
+
+//故障事件打印接口
+void Log_PrintFaultEvent(const char *fmt, ...)
+{
+    if(log_fault_event_en == 0U)
+    {
+        return;
+    }
+    if(fmt == NULL)
+    {
+        return;
+    }
+    if(osal_mutex_take(&log_mutex, 10U) == 0)
+    {
+        return;
+    }
+
+    va_list ap;
+    va_start(ap, fmt);
+    Log_CommonSend(fmt, ap);
+    va_end(ap);
 
     osal_mutex_give(&log_mutex);
 }

@@ -14,8 +14,8 @@ typedef enum
 // 传感器异常状态
 typedef enum
 {
-    SENSOR_NORMAL,
     SENSOR_ERR,  // ADC采样超量程故障
+    SENSOR_NORMAL,
 } SensorStatus_t;
 
  //信号滤波模块初始化    1：初始化成功
@@ -25,13 +25,13 @@ uint8_t SignalFilter_Init(void);
 void SignalFilter_Scan(void);
 
 //获取当前稳定昼夜状态
-LightState_t SignalFilter_GetState(void);
+LightState_t SignalFilter_GetState(void);               // 0 白天、 1 黑夜
 
 // 获取传感器故障状态
-SensorStatus_t SignalFilter_GetSensorErr(void);
+SensorStatus_t SignalFilter_GetSensorErr(void);         // 0 异常、 1 正常
 
-//获取本次采样瞬时原始故障标志  0=异常，1=正常
-uint8_t SignalFilter_GetRawFault(void);
+//获取本次采样瞬时原始故障标志  
+uint8_t SignalFilter_GetRawFault(void);                 // 0 异常、 1 正常
 
 #endif
 

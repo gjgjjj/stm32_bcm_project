@@ -1,5 +1,6 @@
 #include "osal.h"
 #include "task.h"
+#include "queue.h"
 
 uint8_t osal_task_create(void (*task_func)(void *),
                         const char *name,
@@ -175,7 +176,12 @@ void osal_queue_delete(osal_queue_t q)
 /******************************时间与延时接口*************************************/
 uint32_t osal_get_ms(void)                   
 {
-    return (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);    
+    return (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);   
+}
+
+TickType_t osal_get_tick(void)
+{
+    return xTaskGetTickCount();
 }
 
 void osal_msleep(uint32_t ms)
@@ -186,6 +192,16 @@ void osal_msleep(uint32_t ms)
 uint32_t osal_get_ms_from_isr(void)
 {
     return (uint32_t)(xTaskGetTickCountFromISR() * portTICK_PERIOD_MS);
+}
+
+void osal_delay_ms_until(TickType_t *last_wake_tick, uint32_t cycle_ms)
+{
+    if(last_wake_tick == NULL || cycle_ms == 0U)
+    {
+        return;
+    }
+    TickType_t cycle_ticks = pdMS_TO_TICKS(cycle_ms);
+    vTaskDelayUntil(last_wake_tick, cycle_ticks);
 }
 
 
@@ -200,3 +216,4 @@ void osal_yield(void)
 {
     taskYIELD();
 }
+

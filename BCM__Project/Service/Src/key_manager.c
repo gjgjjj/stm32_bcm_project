@@ -32,18 +32,20 @@ static osal_queue_t key_event_queue = NULL;
 // 两路按键状态数组
 static KeyItem_t key_buf[KEY_ID_MAX];
 
+
+
 uint8_t KeyMgr_Init(osal_queue_t evt_queue)
 {
     // 参数校验
     if(evt_queue == NULL)
     {
-        Log_Print(LOG_ERROR,"初始化失败：队列句柄为空");
+        Log_Print(LOG_ERROR,"初始化失败：队列句柄为空\r\n");
         return 0;
     }
     // 防重复初始化
     if(key_event_queue != NULL)
     {
-        Log_Print(LOG_INFO,"已完成初始化，无需重复执行");
+        Log_Print(LOG_ERROR,"已完成初始化，无需重复执行\r\n");
         return 1;
     }
     
@@ -54,7 +56,6 @@ uint8_t KeyMgr_Init(osal_queue_t evt_queue)
         memset(&key_buf[i], 0x00, sizeof(KeyItem_t));   //重置，清除旧数据
         key_buf[i].cur_state = KEY_STATE_IDLE;          //设置初始状态为空闲
     }
-    Log_Print(LOG_DEBUG,"按键服务初始化成功");
     return 1;
 }
 
@@ -159,10 +160,9 @@ void KeyMgr_ScanProcess(void)
 
                 // 非阻塞发送事件到队列
                 uint8_t send_ret = osal_queue_send(key_event_queue, &send_evt, 0U);
-                if(send_ret != 0)     //osal_queue_send返回值 0：成功
+                if(send_ret != 1 )   
                 {
-                    // 0 ：非阻塞，队列满直接返回失败，丢弃本次按键事件
-                    Log_Print(LOG_ERROR,"按键服务：事件队列已满，key_id=%d，按键事件丢失", key_id);   
+                    Log_Print(LOG_ERROR,"按键服务：事件队列已满，key_id=%d，按键事件丢失\r\n", key_id);   
                 }
 
                 // 事件生成完毕，切回空闲状态
@@ -172,7 +172,7 @@ void KeyMgr_ScanProcess(void)
             // 异常未知状态，强制复位防卡死
             default:
                 p_key->cur_state = KEY_STATE_IDLE;
-                Log_Print(LOG_ERROR,"按键服务：按键%d进入未知状态，强制复位", key_id);
+                Log_Print(LOG_ERROR,"按键服务：按键%d进入未知状态，强制复位\r\n", key_id);
                 break;
         }
     }
@@ -182,7 +182,7 @@ uint8_t KeyMgr_GetFilter(uint8_t key_id)
 {
     if(key_id >= KEY_ID_MAX)
     {
-        Log_Print(LOG_ERROR,"按键服务：key_id=%d越界", key_id);
+        Log_Print(LOG_ERROR,"按键服务：key_id=%d越界\r\n", key_id);
         return 0;
     }
     

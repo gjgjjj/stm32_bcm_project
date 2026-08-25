@@ -51,6 +51,8 @@ add_executable(${CMAKE_PROJECT_NAME}
     Service/Inc/storage_manager.h
     Service/Inc/log_service.h
     Service/Inc/executor_diag.h
+
+    Service/Inc/test.h
 )
 
 # Add STM32CubeMX generated sources
@@ -82,6 +84,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Service/Src/storage_manager.c
     Service/Src/log_service.c
     Service/Src/executor_diag.c
+
+    Service/Src/test.c
 )
 
 # Add include paths

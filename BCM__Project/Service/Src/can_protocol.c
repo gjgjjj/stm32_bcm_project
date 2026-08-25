@@ -76,7 +76,7 @@ uint8_t CAN_Protocol_ParseMessage(const CAN_Message_t *rx_msg, CAN_Command_t *p_
 {
     if ((rx_msg == NULL) || (p_cmd == NULL))    //空指针保护
     {
-        Log_Print(LOG_ERROR, "CAN报文解析错误：输入空指针");
+        Log_Print(LOG_ERROR, "CAN报文解析错误：输入空指针\r\n");
         return 4U;
     }
 
@@ -87,13 +87,13 @@ uint8_t CAN_Protocol_ParseMessage(const CAN_Message_t *rx_msg, CAN_Command_t *p_
         case CAN_CMD_FAULT_CLEAR:
             break;
         default:
-            Log_Print(LOG_ERROR, "CAN报文解析错误：不支持的报文ID:0x%03X", rx_msg->id);
+            Log_Print(LOG_ERROR, "CAN报文解析错误：不支持的报文ID:0x%03X\r\n", rx_msg->id);
             return 2U;
     }
 
     if (rx_msg->dlc != 1U)                      //DLC长度校验
     {
-        Log_Print(LOG_ERROR,"CAN报文解析错误：DLC非法，期望1，实际%d", rx_msg->dlc);
+        Log_Print(LOG_ERROR,"CAN报文解析错误：DLC非法，期望1，实际%d\r\n", rx_msg->dlc);
         return 1U;
     }
 
@@ -105,7 +105,7 @@ uint8_t CAN_Protocol_ParseMessage(const CAN_Message_t *rx_msg, CAN_Command_t *p_
         case CAN_CMD_FAULT_CLEAR:
             if ((sig_value != 0x00U) && (sig_value != 0x01U))
             {
-                Log_Print(LOG_ERROR, "CAN报文解析错误：非法信号值:0x%02X", sig_value);
+                Log_Print(LOG_ERROR, "CAN报文解析错误：非法信号值:0x%02X\r\n", sig_value);
                 return 3U;
             }
             break;

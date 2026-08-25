@@ -3,8 +3,8 @@
 #include <stddef.h>
 #include <string.h>
 
-#define FAULT_ACTIVE_TICK           50U   // 连续50次上报异常 → 确认故障激活
-#define FAULT_CLEAR_TICK            30U   // 连续30次上报正常 → 确认故障清除
+#define FAULT_ACTIVE_TICK           20U   // 连续20次上报异常 → 确认故障激活
+#define FAULT_CLEAR_TICK            10U   // 连续10次上报正常 → 确认故障清除
 #define FAULT_TOTAL_NUM             4U    // 故障码总数量
 
 
@@ -25,13 +25,13 @@ uint8_t FaultMgr_Init(osal_queue_t fault_queue)
 {
     if (fault_queue == NULL)
     {
-        Log_Print(LOG_ERROR, "初始化失败：队列句柄为空");
+        Log_Print(LOG_ERROR, "初始化失败：队列句柄为空\r\n");
         return 0;
     }
     // 防重复初始化
     if(fault_event_queue != NULL)
     {
-        Log_Print(LOG_INFO,  "已完成初始化，无需重复执行");
+        Log_Print(LOG_ERROR,  "已完成初始化，无需重复执行\r\n");
         return 1;
     }
 
@@ -45,7 +45,6 @@ uint8_t FaultMgr_Init(osal_queue_t fault_queue)
         fault_filter[i].fault_state = 1U;
     }
 
-    Log_Print(LOG_INFO, "故障模块初始化成功");
     return 1;
 }
 
@@ -57,12 +56,12 @@ void FaultMgr_InputStatus(FaultCode_t code, uint8_t state)
 
     if (id >= FAULT_TOTAL_NUM)
     {
-        Log_Print(LOG_ERROR,"故障码无效:0x%02X", code);
+        Log_Print(LOG_ERROR,"故障码无效:0x%02X\r\n", code);
         return; 
     }
     if (state > 1U)
     {
-        Log_Print(LOG_ERROR,"状态参数非法: %d", state);
+        Log_Print(LOG_ERROR,"状态参数非法: %d\r\n", state);
         return;
     }
 
@@ -91,13 +90,11 @@ void FaultMgr_InputStatus(FaultCode_t code, uint8_t state)
                     event.fault_code = code;
                     event.event = FAULT_EVENT_ACTIVE;
                     uint8_t ret = osal_queue_send(fault_event_queue, &event, 0U);
-                    if(ret != 0)
+                    if(ret != 1U)
                     {
-                        Log_Print(LOG_ERROR,"故障事件队列发送失败，事件丢失");
+                        Log_Print(LOG_ERROR,"故障事件队列发送失败，事件丢失\r\n");
                     }
                 }
-
-                Log_Print(LOG_ERROR, "故障触发激活，故障码=0x%02X", code);
             }
         }
         else
@@ -123,13 +120,11 @@ void FaultMgr_InputStatus(FaultCode_t code, uint8_t state)
                     event.fault_code = code;
                     event.event = FAULT_EVENT_CLEAR;
                     uint8_t ret = osal_queue_send(fault_event_queue, &event, 0U);
-                    if(ret != 0)
+                    if(ret != 1U)
                     {
-                        Log_Print(LOG_ERROR,"故障事件队列发送失败，事件丢失");
+                        Log_Print(LOG_ERROR,"故障事件队列发送失败，事件丢失\r\n");
                     }
                 }
-
-                Log_Print(LOG_INFO,"故障已清除，故障码=0x%02X", code);
             }
         }
         else                                            // 本身就正常，不计数
@@ -146,7 +141,7 @@ uint8_t FaultMgr_IsFaultActive(FaultCode_t code)
     uint8_t id = (uint8_t)code - 0x01U;
     if (id >= FAULT_TOTAL_NUM)
     {
-        return 1U;   //非法故障码返回1
+        return 2U;   //非法故障码返回2
     }
     return fault_filter[id].fault_state;
 }

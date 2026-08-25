@@ -10,11 +10,17 @@ typedef enum
     LOG_ERROR     // 错误与异常信息
 }LogLevel_t;
 
-//全局日志输出等级控制宏：只输出 >=该等级的日志
-#define LOG_OUTPUT_LEVEL    LOG_DEBUG
+// 日志等级控制
+void Log_SetOutputLevel(LogLevel_t lvl);
+// 普通日志开关
+void Log_SetDebugEnable(uint8_t en);
+// 故障事件打印开关
+void Log_SetFaultEventPrintEnable(uint8_t en);
 
-//日志打印接口
-void Log_Print(LogLevel_t level,const char *fmt, ...);
+// 普通日志打印接口
+void Log_Print(LogLevel_t level, const char *fmt, ...);
+// 故障事件打印接口
+void Log_PrintFaultEvent(const char *fmt, ...);
 
 #endif
 

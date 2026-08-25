@@ -17,7 +17,7 @@ typedef struct
     uint32_t id;          // 11位标准帧ID
     uint8_t  dlc;         // 数据长度码
     uint8_t  data[8];     // 8字节数据载荷
-    uint32_t timestamp;   // 接收时间戳
+    uint32_t timestamp;   // 时间戳
 } CAN_Message_t;
 
 typedef void (*BSP_CAN_RxCallback_t)(const CAN_Message_t *p_msg);   //定义回调函数格式：无返回、入参是只读CAN报文指针

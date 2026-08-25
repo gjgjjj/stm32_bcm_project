@@ -1,11 +1,11 @@
 #include "executor_diag.h"
 #include "bsp_gpio.h"
 
-static uint8_t light_expect;
-static uint8_t lock_expect;
+static uint8_t light_expect;   //灯光期望状态    0：关闭  1：打开
+static uint8_t lock_expect;    //门锁期望状态    0：关闭  1：打开
 
-static uint8_t light_raw_fault;
-static uint8_t lock_raw_fault;
+static uint8_t light_raw_fault;  //灯光原始故障状态    0：异常 1：正常
+static uint8_t lock_raw_fault;   //门锁原始故障状态    0：异常 1：正常
 
 
 void ExecutorDiag_Init(void)
