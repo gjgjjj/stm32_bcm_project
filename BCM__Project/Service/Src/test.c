@@ -20,6 +20,7 @@
 
 #if ENABLE_TEST_CODE
 
+
 //第二个任务：并发打印，测试日志互斥锁 
 static void Log_ConcurrentTask(void *arg)
 {
@@ -28,7 +29,17 @@ static void Log_ConcurrentTask(void *arg)
     for(;;)
     {
         Log_Print(LOG_INFO,"【任务B】计数 = %lu\r\n", cnt++);
-        osal_msleep(250);               //任务B阻塞250ms，释放CPU
+        osal_msleep(1000);   //任务B阻塞1s，释放CPU
+    }
+}
+
+// 定时器回调，入参传入计数变量指针
+static void TestTimer_ReloadCb(void *pvArg)
+{
+    uint32_t *p_cnt = (uint32_t *)pvArg;
+    if(p_cnt != NULL)
+    {
+        (*p_cnt)++;
     }
 }
 
@@ -36,55 +47,96 @@ static void Osal_Log_TestTask(void *arg)
 {
     (void)arg;
 
-    /* ========== OSAL基础能力测试 ========== */
+    static osal_timer_handle_t timer_reload;
+    static uint32_t timer_reload_cnt;
+
+    /* ========== OSAL基础能力测试：互斥锁、队列、任务 ========== */
     osal_mutex_t mtx;
     osal_mutex_create(&mtx);
-
     uint8_t ret_take = osal_mutex_take(&mtx, 100U);
     uint8_t ret_give = osal_mutex_give(&mtx);
 
     osal_queue_t q = osal_queue_create(4, sizeof(uint32_t));
     uint32_t send_val = 1234U;
     uint32_t recv_val = 0U;
-
     osal_queue_send(q, &send_val, 100U);
     osal_queue_recv(q, &recv_val, 100U);
 
+    osal_task_create(Log_ConcurrentTask, "log_conc", 512, NULL, 2, NULL);
 
-    osal_task_create(Log_ConcurrentTask, "log_conc", 512, NULL, 2, NULL);    //把任务 B 加入就绪队列
+    /* ========== 自动重载定时器测试 ========== */
+    uint8_t ret;
+    timer_reload_cnt = 0U;   //记录自动重载定时器触发次数
+
+    // 创建自动重载定时器，周期500ms
+    ret = osal_timer_create("timer_reload",
+                            500U,
+                            1U,                     
+                            &timer_reload_cnt,      
+                            TestTimer_ReloadCb,
+                            &timer_reload);
+
+    osal_timer_start(timer_reload);
 
     /* ========== 日志功能测试 ========== */
     Log_Print(LOG_INFO,"==== OSAL与日志模块测试 ====\r\n");
+    if(ret == 1U)
+    {
+        uint8_t start_ret = osal_timer_start(timer_reload);
+        Log_Print(LOG_INFO,"定时器启动 ret=%d\r\n", start_ret);
+    }
+    else
+    {
+        timer_reload = NULL;
+        Log_Print(LOG_ERROR,"定时器创建失败 ret=%d\r\n", ret);
+    }
     Log_Print(LOG_INFO,"互斥锁 获取:%d 释放:%d\r\n", ret_take, ret_give);
     Log_Print(LOG_INFO,"队列 发送:%lu 接收:%lu\r\n", send_val, recv_val);
     Log_Print(LOG_INFO,"当前系统节拍 = %lu 毫秒\r\n", osal_get_ms());
 
-    Log_Print(LOG_DEBUG,"这是调试级别信息\r\n");  //调试级别信息，不会打印
-    Log_Print(LOG_ERROR,"错误测试示例\r\n");
+    Log_Print(LOG_INFO, NULL);
 
-    Log_Print(LOG_INFO, NULL);    //未死机则通过
-
-    //测试超长字符串截断
     char long_buf[150];
     memset(long_buf, 'X', sizeof(long_buf));
-    long_buf[149] = '\0';    //把最后一格改写为结束符
+    long_buf[149] = '\0';
     Log_Print(LOG_INFO,"超长字符串测试: %s\r\n", long_buf);
 
-
-    //主任务循环打印，与Log_ConcurrentTask并发输出
     uint32_t loop_cnt = 0U;
     for(;;)
     {
         Log_Print(LOG_INFO,"【任务A】循环计数 = %lu\r\n", loop_cnt++);
         uint32_t tick = osal_get_ms();
         Log_Print(LOG_INFO,"系统时间(ms): %lu\r\n", tick);
-        osal_msleep(500);               //任务A阻塞500ms，释放CPU
+
+        Log_Print(LOG_INFO," 自动重载定时器触发次数cnt = %lu\r\n", timer_reload_cnt);
+
+        // 运行若干轮后停止、删除定时器
+        if(loop_cnt == 4U)
+        {
+            Log_Print(LOG_INFO,"停止重载定时器\r\n");
+            if(timer_reload != NULL)
+            {
+                osal_timer_stop(timer_reload);
+                osal_msleep(200);
+            }
+        }
+        if(loop_cnt == 6U)
+        {
+            Log_Print(LOG_INFO,"删除重载定时器\r\n");
+            if(timer_reload != NULL)
+            {
+                osal_timer_delete(timer_reload);
+                timer_reload = NULL;
+            }
+        }
+
+        osal_msleep(2000);
     }
 }
 
 void Test_Osal_CreateTask(void)
 {
-    osal_task_create(Osal_Log_TestTask, "osal_log_test", 768U, NULL, 2U, NULL);
+    osal_task_create(Osal_Log_TestTask, "osal_log_test", 1024U, NULL, 2U, NULL);
 }
 
 
@@ -165,7 +217,7 @@ static void Test_FaultMgr_Task(void *arg)
     } fault_test_step = TEST_STEP_IDLE;
 
     uint32_t case_tick = osal_get_ms();
-    TickType_t last_wake_tick = osal_get_tick();
+    osal_tick_t last_wake_tick = osal_get_tick();
 
     while(1)
     {
@@ -256,7 +308,7 @@ static void Test_FaultMgr_Task(void *arg)
                 FaultMgr_InputStatus(FAULT_CODE_SENSOR,1U);
                 FaultMgr_InputStatus(FAULT_CODE_CAN,1U);
                 FaultMgr_InputStatus(FAULT_CODE_LIGHT,1U);
-                FaultMgr_InputStatus(FAULT_CODE_DOOR,1U);
+                FaultMgr_InputStatus(FAULT_CODE_LOCK,1U);
                 break;
             }
         }
@@ -362,7 +414,7 @@ static void Test_CanProtocol_Task(void *arg)
 
         osal_msleep(20U);
 
-        send_ret = CAN_Protocol_SendDoorLockStatus(0x01U);
+        send_ret = CAN_Protocol_SendLockStatus(0x01U);
         Log_Print(LOG_INFO,"发送门锁状态报文 ret=%d\r\n", send_ret);
 
         osal_msleep(20U);
@@ -481,7 +533,7 @@ static void Test_KeyMgr_Task(void *arg)
     Log_Print(LOG_INFO,"KeyMgr_Init ret:%d\r\n", ret);
     Log_Print(LOG_INFO,"请按下 KEY1 / KEY2\r\n");
 
-    TickType_t last_wake = osal_get_tick(); 
+    osal_tick_t last_wake = osal_get_tick(); 
 
     while(1)
     {
@@ -552,7 +604,7 @@ static void Test_StorageMgr_Task(void *arg)
         STORAGE_TEST_FINISH             //全部测试完成
     } storage_test_step = STORAGE_TEST_IDLE;
 
-    TickType_t last_wake = osal_get_tick();
+    osal_tick_t last_wake = osal_get_tick();
 
     while(1)
     {
@@ -701,7 +753,7 @@ static void Test_ExecutorDiag_Task(void *arg)
         TEST_STEP_ALL_DONE            //全部用例跑完，常驻打印状态
     } diag_test_step = TEST_STEP_LIGHT_SET_EXP1;
     uint32_t step_start_ms = 0U;
-    TickType_t last_wake = osal_get_tick();
+    osal_tick_t last_wake = osal_get_tick();
 
     while(1)
     {

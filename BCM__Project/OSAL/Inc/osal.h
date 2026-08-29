@@ -2,20 +2,20 @@
 #define __OSAL_H
 
 #include <stdint.h>
-#include "FreeRTOS.h"
-#include "semphr.h"
-
 
 #define OSAL_WAIT_FOREVER       0xFFFFFFFFU     //永久等待，用于锁、队列等待时间参数ms
 
+typedef void* osal_tick_t;
 typedef void* osal_queue_t;                     //OSAL抽象队列句柄
 typedef void* osal_task_handle_t;               //OSAL抽象任务句柄
+typedef void * osal_timer_handle_t;             //OSAL抽象定时器句柄
 
 //互斥锁
+#define OSAL_MUTEX_BUF_SIZE    (128U)   
 typedef struct
 {
-    StaticSemaphore_t buf;  //FreeRTOS静态信号量内存缓冲区
-    SemaphoreHandle_t hdl;  //信号量句柄
+    __attribute__((aligned(4))) uint8_t buf[OSAL_MUTEX_BUF_SIZE];
+    void *hdl;
 } osal_mutex_t;
 
 
@@ -25,6 +25,21 @@ uint8_t osal_task_create(void (*task_func)(void *),       //任务入口函数
                         void *arg,                        //任务入参
                         uint8_t priority,                 //任务优先级
                         osal_task_handle_t *handle_out);  //输出任务句柄
+
+
+typedef void (*osal_timer_callback_t)(void * pvArg);
+
+uint8_t osal_timer_create(const char * const pcTimerName,                //定时器名字
+                          uint32_t xTimerPeriodMs,                       //定时周期 ms
+                          uint8_t uxAutoReload,                          // 1=自动重载，0=单次 
+                          void * const pvTimerID,                        //回调函数参数
+                          osal_timer_callback_t pxCallbackFunction,      //定时器回调函数
+                          osal_timer_handle_t *handle_out);              //输出定时器句柄
+                  
+uint8_t osal_timer_start(osal_timer_handle_t handle);             //启动定时器
+uint8_t osal_timer_stop(osal_timer_handle_t handle);              //停止定时器
+uint8_t osal_timer_delete(osal_timer_handle_t handle);            //删除定时器
+
 
 void          osal_mutex_create(osal_mutex_t *m);                 //创建静态互斥锁
 uint8_t       osal_mutex_take(osal_mutex_t *m, uint32_t ms);      //获取互斥锁
@@ -40,11 +55,11 @@ void          osal_queue_delete(osal_queue_t q);                                
 
 
 uint32_t     osal_get_ms(void);                 //获取系统ms时间戳，禁止中断调用
-TickType_t   osal_get_tick(void);               //获取系统tick，禁止中断调用
+osal_tick_t   osal_get_tick(void);               //获取系统tick，禁止中断调用
 void         osal_msleep(uint32_t ms);          //延时ms毫秒，仅任务上下文，禁止中断调用
 uint32_t     osal_get_ms_from_isr(void);        //中断上下文获取系统时间戳
 
-void osal_delay_ms_until(TickType_t *last_wake_tick, uint32_t cycle_ms);   //周期延时ms
+void osal_delay_ms_until(osal_tick_t *last_wake_tick, uint32_t cycle_ms);   //周期延时ms
 
 void* osal_get_current_task(void);              //获取当前任务句柄
 void osal_yield(void);                          //让出CPU，触发一次任务调度
