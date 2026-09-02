@@ -10,6 +10,8 @@ typedef enum
     LOG_ERROR     // 错误与异常信息
 }LogLevel_t;
 
+void Log_Service_Init(void);    
+
 // 日志等级控制
 void Log_SetOutputLevel(LogLevel_t lvl);
 // 普通日志开关

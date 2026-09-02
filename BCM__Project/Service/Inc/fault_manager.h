@@ -10,7 +10,7 @@ typedef enum
     FAULT_CODE_SENSOR    = 0x01U,    // 传感器异常
     FAULT_CODE_CAN       = 0x02U,    // CAN总线异常
     FAULT_CODE_LIGHT     = 0x03U,    // 灯光执行器故障
-    FAULT_CODE_DOOR      = 0x04U     // 门锁执行器故障
+    FAULT_CODE_LOCK      = 0x04U     // 门锁执行器故障
     
 } FaultCode_t;
 
@@ -39,5 +39,11 @@ void FaultMgr_InputStatus(FaultCode_t code, uint8_t state);
 uint8_t  FaultMgr_IsFaultActive(FaultCode_t code);
 
 
+// 对外声光控制接口
+void FaultMgr_LedRedSet(uint8_t state);    //红灯控制 1亮，0灭
+void FaultMgr_LedGreenSet(uint8_t state);  //绿灯控制 1亮，0灭
+void FaultMgr_BeepSet(uint8_t state);       //蜂鸣器 1开，0关
+void FaultMgr_LedRedToggle(void);
+void FaultMgr_BeepToggle(void);
 #endif
 

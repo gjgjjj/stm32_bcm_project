@@ -14,7 +14,7 @@ static uint8_t buf_idx;                       //环形缓存写索引
 static uint32_t sum;                          //缓存区总和
 static uint8_t buf_fill_cnt;                  //采集样本数
 
-static LightState_t light_state;              //光照状态
+static Night_state_t light_state;              //光照状态
 static SensorStatus_t sensor_status;          //传感器状态
 static uint8_t err_cnt;                       //连续异常计数
 static uint8_t recover_cnt;                   //连续正常恢复计数
@@ -117,14 +117,28 @@ void SignalFilter_Scan(void)
     }
 }
 
-LightState_t SignalFilter_GetState(void)
+uint8_t SignalFilter_GetState(void)
 {
-    return light_state;
+    if(light_state == LIGHT_STATE_DAY)
+    {
+        return 0U;
+    }
+    else
+    {
+        return 1U;
+    }
 }
 
-SensorStatus_t SignalFilter_GetSensorErr(void)
+uint8_t SignalFilter_GetSensorErr(void)
 {
-    return sensor_status;
+    if(sensor_status == SENSOR_ERR)
+    {
+        return 0U;
+    }
+    else
+    {
+        return 1U;
+    }
 }
 
 

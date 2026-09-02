@@ -53,6 +53,14 @@ add_executable(${CMAKE_PROJECT_NAME}
     Service/Inc/executor_diag.h
 
     Service/Inc/test.h
+
+    Application/Inc/bcm_state.h
+    Application/Inc/light_control.h
+    Application/Inc/lock_control.h
+    Application/Inc/welcome_light.h
+    Application/Inc/system_manager.h
+    Application/Inc/bcm_fault.h
+
 )
 
 # Add STM32CubeMX generated sources
@@ -86,6 +94,13 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Service/Src/executor_diag.c
 
     Service/Src/test.c
+
+    Application/Src/bcm_state.c
+    Application/Src/light_control.c
+    Application/Src/lock_control.c
+    Application/Src/welcome_light.c
+    Application/Src/system_manager.c
+    Application/Src/bcm_fault.c
 )
 
 # Add include paths
@@ -94,6 +109,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     BSP/Inc
     Service/Inc
     OSAL/Inc
+    Application/Inc
 )
 
 # Add project symbols (macros)

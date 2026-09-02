@@ -33,7 +33,6 @@ static osal_queue_t key_event_queue = NULL;
 static KeyItem_t key_buf[KEY_ID_MAX];
 
 
-
 uint8_t KeyMgr_Init(osal_queue_t evt_queue)
 {
     // 参数校验
@@ -45,7 +44,7 @@ uint8_t KeyMgr_Init(osal_queue_t evt_queue)
     // 防重复初始化
     if(key_event_queue != NULL)
     {
-        Log_Print(LOG_ERROR,"已完成初始化，无需重复执行\r\n");
+        Log_Print(LOG_INFO,"已完成初始化，无需重复执行\r\n");
         return 1;
     }
     
@@ -56,6 +55,7 @@ uint8_t KeyMgr_Init(osal_queue_t evt_queue)
         memset(&key_buf[i], 0x00, sizeof(KeyItem_t));   //重置，清除旧数据
         key_buf[i].cur_state = KEY_STATE_IDLE;          //设置初始状态为空闲
     }
+    Log_Print(LOG_DEBUG,"按键服务初始化成功\r\n");
     return 1;
 }
 

@@ -1,5 +1,6 @@
 #include "fault_manager.h"
 #include "log_service.h"
+#include "bsp_gpio.h"
 #include <stddef.h>
 #include <string.h>
 
@@ -146,3 +147,29 @@ uint8_t FaultMgr_IsFaultActive(FaultCode_t code)
     return fault_filter[id].fault_state;
 }
 
+
+
+void FaultMgr_LedRedSet(uint8_t state)
+{
+    GPIO_WritePin(RGB_RED, state);
+}
+
+void FaultMgr_LedGreenSet(uint8_t state)
+{
+    GPIO_WritePin(RGB_GREEN, state);
+}
+
+void FaultMgr_BeepSet(uint8_t state)
+{
+    GPIO_WritePin(BEEP, state);
+}
+
+void FaultMgr_LedRedToggle(void)
+{
+    GPIO_TogglePin(RGB_RED);
+}
+
+void FaultMgr_BeepToggle(void)
+{
+    GPIO_TogglePin(BEEP);
+}

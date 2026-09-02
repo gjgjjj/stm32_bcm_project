@@ -98,43 +98,21 @@ uint8_t CAN_Protocol_ParseMessage(const CAN_Message_t *rx_msg, CAN_Command_t *p_
     }
 
     uint8_t sig_value = rx_msg->data[0];        // 信号取值范围校验
-    switch (rx_msg->id)
+    if ((sig_value != 0x00U) && (sig_value != 0x01U))
     {
-        case CAN_CMD_LIGHT:
-        case CAN_CMD_LOCK:
-        case CAN_CMD_FAULT_CLEAR:
-            if ((sig_value != 0x00U) && (sig_value != 0x01U))
-            {
-                Log_Print(LOG_ERROR, "CAN报文解析错误：非法信号值:0x%02X\r\n", sig_value);
-                return 3U;
-            }
-            break;
+        Log_Print(LOG_ERROR, "CAN报文解析错误：非法信号值:0x%02X\r\n", sig_value);
+        return 3U;
     }
 
     p_cmd->msg_id = rx_msg->id;                //组装解析后的控制指令
     p_cmd->value = sig_value;
-
-    switch (rx_msg->id)
-    {
-        case CAN_CMD_LIGHT:
-            p_cmd->command = 0x01U;           // 灯光控制指令类型
-            break;
-        case CAN_CMD_LOCK:
-            p_cmd->command = 0x02U;           // 门锁控制指令类型
-            break;
-        case CAN_CMD_FAULT_CLEAR:
-            p_cmd->command = 0x03U;           // 故障清除指令类型
-            break;
-        default:
-            break;
-    }
 
     return 0U;                                // 全部校验通过，解析成功
 }
 
 
 //组包设备心跳报文
-uint8_t CAN_Protocol_Heartbeat(CAN_Message_t *tx_msg, uint8_t state)
+static uint8_t CAN_Protocol_Heartbeat(CAN_Message_t *tx_msg, uint8_t state)
 {
     if (tx_msg == NULL)
     {
@@ -150,7 +128,7 @@ uint8_t CAN_Protocol_Heartbeat(CAN_Message_t *tx_msg, uint8_t state)
 }
 
 //组包车灯状态报文
-uint8_t CAN_Protocol_LightStatus(CAN_Message_t *tx_msg, uint8_t state)
+static uint8_t CAN_Protocol_LightStatus(CAN_Message_t *tx_msg, uint8_t state)
 {
     if (tx_msg == NULL)
     {
@@ -166,7 +144,7 @@ uint8_t CAN_Protocol_LightStatus(CAN_Message_t *tx_msg, uint8_t state)
 }
 
 //组包门锁状态报文
-uint8_t CAN_Protocol_DoorLockStatus(CAN_Message_t *tx_msg, uint8_t state)
+static uint8_t CAN_Protocol_DoorLockStatus(CAN_Message_t *tx_msg, uint8_t state)
 {
     if (tx_msg == NULL)
     {
@@ -182,7 +160,7 @@ uint8_t CAN_Protocol_DoorLockStatus(CAN_Message_t *tx_msg, uint8_t state)
 }
 
 //组包故障事件报文
-uint8_t CAN_Protocol_FaultEvent(CAN_Message_t *tx_msg, uint8_t fault_id, uint8_t fault_st)
+static uint8_t CAN_Protocol_FaultEvent(CAN_Message_t *tx_msg, uint8_t fault_id, uint8_t fault_st)
 {
     if (tx_msg == NULL)
     {
@@ -238,7 +216,7 @@ uint8_t CAN_Protocol_SendLightStatus(uint8_t state)
     return ret;
 }
 
-uint8_t CAN_Protocol_SendDoorLockStatus(uint8_t state)
+uint8_t CAN_Protocol_SendLockStatus(uint8_t state)
 {
     CAN_Message_t msg;
     if(CAN_Protocol_DoorLockStatus(&msg, state) != 1U)
