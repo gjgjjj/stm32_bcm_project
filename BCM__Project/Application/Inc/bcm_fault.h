@@ -1,12 +1,15 @@
 #ifndef __BCM_FAULT_H
 #define __BCM_FAULT_H
 
+#include <stdint.h>
 #include "fault_manager.h"
 
 //整机故障等级定义
 #define SYS_FAULT_NONE        0U
 #define SYS_FAULT_NORMAL      1U
 #define SYS_FAULT_SEVERE      2U
+
+void BcmFault_Init(void);
 
 //接收故障事件，更新活跃故障表
 void BcmFault_ReceiveFaultEvent(FaultCode_t fault_code, FaultEventType_t event);

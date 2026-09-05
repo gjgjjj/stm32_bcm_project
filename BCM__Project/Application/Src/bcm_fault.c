@@ -112,16 +112,17 @@ void BcmFault_SetFaultLevel(void)
 
 uint8_t BcmFault_GetHeartBeatMode(void)
 {
-    const BCM_State *p_state = BCM_GetState();
-    return (p_state->fault_level != SYS_FAULT_NONE) ? 1U : 0U;
+    BCM_State state_snap;     //上一时刻快照
+    BCM_GetState(&state_snap);
+    return (state_snap.fault_level != SYS_FAULT_NONE) ? 1U : 0U;
 }
-
 
 //严重故障时：CAN指令不能控制执行器，本地按键不受限制
 uint8_t BcmFault_SevereFaultLockActuator(void)
 {
-    const BCM_State *p_state = BCM_GetState();
-    if(p_state->fault_level == SYS_FAULT_SEVERE)
+    BCM_State state_snap;
+    BCM_GetState(&state_snap);
+    if(state_snap.fault_level == SYS_FAULT_SEVERE)
     {
         return 1U;
     }
@@ -131,8 +132,6 @@ uint8_t BcmFault_SevereFaultLockActuator(void)
 //清除Flash历史故障记录 + 清空应用层活跃故障表
 void BcmFault_ClearHistoryFault(void)
 {
-    StorageMgr_ClearAllFault();
-
     if(osal_mutex_take(&fault_table_mtx, 10U) == 0)
     {
         return;
@@ -145,6 +144,8 @@ void BcmFault_ClearHistoryFault(void)
     }
 
     osal_mutex_give(&fault_table_mtx);
+
+    StorageMgr_ClearAllFault();
 }
 
 
@@ -182,9 +183,10 @@ void AlarmTimerCallback(void *pvArg)
 
 void BcmFault_LedBeep_Control(void)
 {
-    const BCM_State *p_state = BCM_GetState();
+    BCM_State state_snap;
+    BCM_GetState(&state_snap);
 
-    switch(p_state->fault_level)
+    switch(state_snap.fault_level)
     {
         case SYS_FAULT_NONE:
             FaultMgr_LedGreenSet(1U);
@@ -208,4 +210,3 @@ void BcmFault_LedBeep_Control(void)
             break;
     }
 }
-

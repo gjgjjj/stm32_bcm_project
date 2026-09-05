@@ -1,7 +1,6 @@
 #include "key_manager.h"
 #include "bsp_gpio.h"
 #include "log_service.h"
-#include <stdint.h>
 #include <string.h>
 
 typedef enum

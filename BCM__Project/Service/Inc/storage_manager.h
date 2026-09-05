@@ -2,7 +2,6 @@
 #define __STORAGE_MANAGER_H
 
 #include <stdint.h>
-#include <stdbool.h>
 
 // Flash存储单条故障日志记录
 typedef struct

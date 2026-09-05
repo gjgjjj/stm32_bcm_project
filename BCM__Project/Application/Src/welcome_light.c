@@ -25,7 +25,8 @@ void WelcomeLight_OnUnlockEvent(void)
 {
     WelcomeLight_RefreshNightState();
     
-    const BCM_State *p_bcm = BCM_GetState();
+    BCM_State state_snap;
+    BCM_GetState(&state_snap);
 
     // 迎宾已经在运行，忽略本次事件
     if (welcome_running == 1U)
@@ -34,19 +35,19 @@ void WelcomeLight_OnUnlockEvent(void)
     }
 
     // 自动模式才允许迎宾
-    if (p_bcm->light_work_mode != 1U)
+    if (state_snap.light_work_mode != 1U)
     {
         return;
     }
 
     // 夜晚才触发迎宾
-    if (p_bcm->night_state != 1U)
+    if (state_snap.night_state != 1U)
     {
         return;
     }
 
     //灯光关闭
-    if (p_bcm->light_state != 0U)
+    if (state_snap.light_state != 0U)
     {
         return;
     }
@@ -66,17 +67,18 @@ void WelcomeLight_Process(void)
         return;
     }
 
-    const BCM_State *p_bcm = BCM_GetState();
+    BCM_State state_snap;
+    BCM_GetState(&state_snap);
 
     // 切为手动模式，终止迎宾
-    if (p_bcm->light_work_mode == 0U)
+    if (state_snap.light_work_mode == 0U)
     {
         welcome_running = 0U;
         return;
     }
 
     // 灯光被外部指令改写，退出迎宾
-    if (p_bcm->light_state == 0U)
+    if (state_snap.light_state == 0U)
     {
         welcome_running = 0U;
         return;

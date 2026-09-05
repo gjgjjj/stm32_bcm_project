@@ -14,15 +14,17 @@ void LightControl_Init(void)
 
 void LightControl_ToggleWorkMode(void)
 {
-    const BCM_State *p_bcm = BCM_GetState();
-    uint8_t new_mode = !p_bcm->light_work_mode;
+    BCM_State state_snap;
+    BCM_GetState(&state_snap);
+    uint8_t new_mode = !state_snap.light_work_mode;
     BCM_SetLightWorkMode(new_mode);
 }
 
 uint8_t LightControl_GetWorkMode(void)
 {
-    const BCM_State *p_bcm = BCM_GetState();
-    return p_bcm->light_work_mode;
+    BCM_State state_snap;
+    BCM_GetState(&state_snap);
+    return state_snap.light_work_mode;
 }
 
 
@@ -32,8 +34,9 @@ void LightControl_SetOutput(uint8_t state)
     {
         return;
     }
-    const BCM_State *p_bcm = BCM_GetState();
-    if(p_bcm->light_state == state)
+    BCM_State state_snap;
+    BCM_GetState(&state_snap);
+    if(state_snap.light_state == state)
     {
         return;
     }
@@ -44,16 +47,18 @@ void LightControl_SetOutput(uint8_t state)
 
 void LightControl_Toggle(void)
 {
-    const BCM_State *p_bcm = BCM_GetState();       
-    uint8_t new_state = !p_bcm->light_state;
+    BCM_State state_snap;
+    BCM_GetState(&state_snap);       
+    uint8_t new_state = !state_snap.light_state;
     LightControl_SetOutput(new_state);         
 }
 
 
 void LightControl_Process(void)
 {
-    const BCM_State *p_bcm = BCM_GetState();
-    uint8_t global_state = p_bcm->light_state;
+    BCM_State state_snap;
+    BCM_GetState(&state_snap);
+    uint8_t global_state = state_snap.light_state;
 
     if(global_state == light_shadow)
     {

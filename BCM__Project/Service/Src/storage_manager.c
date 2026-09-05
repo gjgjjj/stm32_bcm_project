@@ -1,7 +1,6 @@
 #include "storage_manager.h"
 #include "bsp_flash.h"
 #include "log_service.h"
-#include <stdint.h>
 #include <string.h>
 
 

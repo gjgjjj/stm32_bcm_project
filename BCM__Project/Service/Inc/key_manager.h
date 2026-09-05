@@ -1,6 +1,7 @@
 #ifndef __KEY_MANAGER_H
 #define __KEY_MANAGER_H
 
+#include <stdint.h>
 #include "osal.h"
 
 // 按键ID枚举

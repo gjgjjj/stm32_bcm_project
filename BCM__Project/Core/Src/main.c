@@ -21,8 +21,8 @@
 #include "cmsis_os.h"
 #include "adc.h"
 #include "can.h"
-#include "iwdg.h"
-#include "rtc.h"
+//#include "iwdg.h"
+//#include "rtc.h"
 #include "spi.h"
 #include "usart.h"
 #include "gpio.h"
@@ -34,12 +34,10 @@
 #include "bsp_adc.h"
 #include "bsp_gpio.h"
 #include "bsp_uart.h"
-#include "bsp_rtc.h"
-#include "bsp_iwdg.h"
-#include "test.h"
-
-#include "log_service.h"
-#include "can_protocol.h"
+#include "system_manager.h"
+//#include "bsp_rtc.h"
+//#include "bsp_iwdg.h"
+// #include "test.h"
 
 /* USER CODE END Includes */
 
@@ -110,24 +108,23 @@ int main(void)
   MX_ADC1_Init();
   MX_CAN_Init();
   //MX_IWDG_Init();
-  MX_RTC_Init();
+  //MX_RTC_Init();
   MX_SPI1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-/*****************该部分属于驱动层函数，后续需放入服务层，目前仅作调试临时放置********************/
+
   BSP_GPIO_Init();
   BSP_FLASH_Init();
-                      
-/*****************该部分属于驱动层函数，后续需放入服务层，目前仅作调试临时放置********************/
-
-  #if ENABLE_TEST_CODE
-
-  Log_Service_Init();        //日志互斥锁创建
-  CanProtocol_Init();        //内部创建互斥锁
-
+  BSP_ADC_Init();
+  BSP_UART_Init();
   BSP_CAN_SetFilter(0, 0x000, 0x000, CAN_RX_FIFO0);
   BSP_CAN_Start();
 
+  SystemMgr_Init();
+
+
+/***************** 测试任务 ********************/
+  #if ENABLE_TEST_CODE
 
   //Test_Osal_CreateTask();           //OSAL日志测试任务
   //Test_SignalFilter_CreateTask();   //信号滤波测试任务
@@ -138,14 +135,16 @@ int main(void)
   //Test_StorageMgr_CreateTask();     //存储管理模块测试任务
   //Test_ExecutorDiag_CreateTask();   //执行器诊断模块测试任务
 
-  
   #endif
-  
+/***************** 测试任务 ********************/
+
   /* USER CODE END 2 */
 
   /* Init scheduler */
   osKernelInitialize();  /* Call init function for freertos objects (in cmsis_os2.c) */
   MX_FREERTOS_Init();
+
+  SystemMgr_StartTasksAndTimer();
 
   /* Start scheduler */
   osKernelStart();

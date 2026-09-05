@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 
-
 //BCM全局状态结构体
 typedef struct
 {
@@ -15,8 +14,7 @@ typedef struct
     uint8_t         light_work_mode;    // 灯光工作模式：0=手动模式，1=自动模式
 } BCM_State;
 
-//获取BCM全局状态指针,只能读
-const BCM_State* BCM_GetState(void);
+void BCM_GetState(BCM_State *p_bcm);
 
 //初始化BCM全局状态
 void BCM_State_Init(void);

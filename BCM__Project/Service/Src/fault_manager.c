@@ -1,7 +1,6 @@
 #include "fault_manager.h"
 #include "log_service.h"
 #include "bsp_gpio.h"
-#include <stddef.h>
 #include <string.h>
 
 #define FAULT_ACTIVE_TICK           20U   // 连续20次上报异常 → 确认故障激活

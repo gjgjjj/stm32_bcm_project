@@ -2,7 +2,6 @@
 #define __SIGNAL_FILTER_H
 
 #include <stdint.h>
-#include <stdbool.h>
 
 // 光照昼夜状态
 typedef enum

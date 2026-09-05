@@ -13,8 +13,9 @@ void LockControl_Init(void)
 {
     lock_shadow = LOCK_OFF;
     unlock_flag = 0U;
-    const BCM_State *p_bcm = BCM_GetState();
-    last_lock_state = p_bcm->lock_state;
+    BCM_State state_snap;
+    BCM_GetState(&state_snap);
+    last_lock_state = state_snap.lock_state;
 }
 
 //CAN指令入口  设置车锁状态
@@ -24,8 +25,9 @@ void LockControl_SetOutput(uint8_t state)
     {
         return;
     }
-    const BCM_State *p_bcm = BCM_GetState();
-    if(p_bcm->lock_state == state)
+    BCM_State state_snap;
+    BCM_GetState(&state_snap);
+    if(state_snap.lock_state == state)
     {
         return;
     }
@@ -35,16 +37,18 @@ void LockControl_SetOutput(uint8_t state)
 //按键指令入口  切换车锁状态
 void LockControl_Toggle(void)
 {
-    const BCM_State *p_bcm = BCM_GetState();
-    uint8_t new_state = !p_bcm->lock_state;
+    BCM_State state_snap;
+    BCM_GetState(&state_snap);
+    uint8_t new_state = !state_snap.lock_state;
     LockControl_SetOutput(new_state);
 }
 
 //车锁周期处理
 void LockControl_Process(void)
 {
-    const BCM_State *p_bcm = BCM_GetState();
-    uint8_t curr_lock_state = p_bcm->lock_state;
+    BCM_State state_snap;
+    BCM_GetState(&state_snap);
+    uint8_t curr_lock_state = state_snap.lock_state;
 
     // -------- 边沿检测逻辑 --------
     unlock_flag = 0U;
@@ -56,7 +60,7 @@ void LockControl_Process(void)
     last_lock_state = curr_lock_state;
 
     // -------- 状态同步：单点下发底层、单点CAN上报 --------
-    uint8_t global_state = p_bcm->lock_state;
+    uint8_t global_state = state_snap.lock_state;
     if(global_state == lock_shadow)
     {
         return;
