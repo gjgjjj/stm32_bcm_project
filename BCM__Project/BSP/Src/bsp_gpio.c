@@ -13,8 +13,10 @@ static const GPIO_Map_t gpio_map[] =
 {
     [RELAY_LIGHT]  = {GPIOC, GPIO_PIN_5,  1},
     [RELAY_LOCK]   = {GPIOC, GPIO_PIN_2,  1},
-    [FB_LOCK]      = {GPIOC, GPIO_PIN_3,  1},
-    [FB_LIGHT]     = {GPIOC, GPIO_PIN_4,  1},
+    [FB_LOCK_NC]      = {GPIOC, GPIO_PIN_3,  1},
+    [FB_LIGHT_NC]     = {GPIOC, GPIO_PIN_4,  1},
+    [FB_LOCK_NO]      = {GPIOC, GPIO_PIN_7,  1},
+    [FB_LIGHT_NO]     = {GPIOC, GPIO_PIN_6,  1},
     [BEEP]         = {GPIOC, GPIO_PIN_0,  1},
     [RGB_RED]      = {GPIOB, GPIO_PIN_5,  0},
     [RGB_GREEN]    = {GPIOB, GPIO_PIN_0,  0},
@@ -24,7 +26,7 @@ static const GPIO_Map_t gpio_map[] =
 
 void BSP_GPIO_Init(void)
 {
-    /* 上电默认状态：全部关闭 */
+    //上电默认状态：全部关闭 
     GPIO_WritePin(RELAY_LIGHT, 0);
     GPIO_WritePin(RELAY_LOCK,  0);
     GPIO_WritePin(BEEP,        0);
@@ -86,8 +88,10 @@ void GPIO_TogglePin(GPIO_ID id)
         case RGB_GREEN:
              HAL_GPIO_TogglePin(p->port, p->pin);
             break;
-        case FB_LOCK:
-        case FB_LIGHT:
+        case FB_LOCK_NC:
+        case FB_LIGHT_NC:
+        case FB_LOCK_NO:
+        case FB_LIGHT_NO:        
         case KEY1:
         case KEY2:
         default:

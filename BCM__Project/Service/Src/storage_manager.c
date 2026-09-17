@@ -236,8 +236,40 @@ uint8_t StorageMgr_ClearAllFault(void)
         Log_Print(LOG_ERROR,"清除故障记录:扇区擦除失败\r\n");
         return 0;
     }
+    Log_Print(LOG_INFO,"历史故障记录已清除\r\n");
     write_index = 0U;                  //擦除成功，写指针复位
     return 1;
 }
 
 
+void StorageMgr_PrintAllFaultLog(void)
+{
+    if(!storage_init)
+    {
+        Log_Print(LOG_ERROR,"StorageMgr:模块未初始化，无法打印故障记录\r\n");
+        return;
+    }
+
+    //临时缓存，最多读取全部记录
+    Fault_Record_t temp_rec_buf[STORAGE_MAX_RECORD_CNT];
+    uint16_t valid_num = StorageMgr_ReadAllFault(temp_rec_buf, STORAGE_MAX_RECORD_CNT);
+
+    Log_Print(LOG_INFO,"==================== 历史故障记录 ====================\r\n");
+    if(valid_num == 0U)
+    {
+        Log_Print(LOG_INFO,"Flash中没有有效故障记录\r\n");
+    }
+    else
+    {
+        for(uint16_t i = 0U; i < valid_num; i++)
+        {
+            Fault_Record_t *p_rec = &temp_rec_buf[i];
+            Log_Print(LOG_INFO,"Fault[%u]: code=0x%02X, status=%u, timestamp=%lu\r\n",
+                      i,
+                      p_rec->fault_code,
+                      p_rec->status,
+                      (unsigned long)p_rec->timestamp);
+        }
+    }
+    Log_Print(LOG_INFO,"====================================================\r\n");
+}

@@ -59,10 +59,7 @@ static void Can_FeedFaultMgr(void)
 static void HeartBeatTimerCallback(void *pvArg)
 {
     (void)pvArg;
-    if(hb_tx_flag == 0U)
-    {
-        hb_tx_flag = 1U;
-    }
+    hb_tx_flag = 1U;
 }
 
 
@@ -120,7 +117,7 @@ void SystemMgr_StartTasksAndTimer(void)
     }
     else
     {
-        Log_Print(LOG_ERROR, "SystemMgr: heartbeat timer create fail\r\n");
+        Log_Print(LOG_ERROR, "SystemMgr: 心跳报文定时器创建失败\r\n");
     }
     
     // 声光报警定时器 500ms
@@ -131,7 +128,7 @@ void SystemMgr_StartTasksAndTimer(void)
     }
     else
     {
-        Log_Print(LOG_ERROR,"SystemMgr: alarm timer create fail\r\n");
+        Log_Print(LOG_ERROR,"SystemMgr: 报警定时器创建失败\r\n");
     }
 }
 
@@ -141,7 +138,7 @@ void can_protocol_CreateTask(void)
     osal_task_create(CanProtocolTask, "can_proto_task", 512U, NULL, 5U, &can_proto_task);
     if(can_proto_task == NULL)
     {
-        Log_Print(LOG_ERROR,"create can_proto_task fail\r\n");
+        Log_Print(LOG_ERROR,"CAN协议处理任务创建失败\r\n");
     }
 }
 
@@ -150,7 +147,7 @@ void fault_monitor_CreateTask(void)
     osal_task_create(FaultMonitorTask, "fault_monitor_task", 512U, NULL, 4U, &fault_monitor_task);
     if(fault_monitor_task == NULL)
     {
-        Log_Print(LOG_ERROR,"create fault_monitor_task fail\r\n");
+        Log_Print(LOG_ERROR,"故障监控任务创建失败\r\n");
     }
 }
 
@@ -159,7 +156,7 @@ void input_collect_CreateTask(void)
     osal_task_create(InputCollectTask, "input_collect_task", 512U, NULL, 3U, &input_collect_task);
     if(input_collect_task == NULL)
     {
-        Log_Print(LOG_ERROR,"create input_collect_task fail\r\n");
+        Log_Print(LOG_ERROR,"输入采集任务创建失败\r\n");
     }
 }
 
@@ -168,7 +165,7 @@ void bcm_control_CreateTask(void)
     osal_task_create(BcmControlTask, "bcm_control_task", 768U, NULL, 2U, &bcm_control_task);
     if(bcm_control_task == NULL)
     {
-        Log_Print(LOG_ERROR,"create bcm_control_task fail\r\n");
+        Log_Print(LOG_ERROR,"BCM控制任务创建失败\r\n");
     }
 }
 
@@ -177,7 +174,7 @@ void system_manage_CreateTask(void)
     osal_task_create(SystemManageTask, "system_manage_task", 512U, NULL, 1U, &system_manage_task);
     if(system_manage_task == NULL)
     {
-        Log_Print(LOG_ERROR,"create system_manage_task fail\r\n");
+        Log_Print(LOG_ERROR,"系统管理任务创建失败\r\n");
     }
 }
 
@@ -186,7 +183,7 @@ void fault_process_CreateTask(void)
     osal_task_create(FaultProcessTask, "fault_process_task", 768U, NULL, 0U, &fault_process_task);
     if(fault_process_task == NULL)
     {
-        Log_Print(LOG_ERROR,"create fault_process_task fail\r\n");
+        Log_Print(LOG_ERROR,"故障处理任务创建失败\r\n");
     }
 }
 
@@ -312,7 +309,7 @@ static void BcmControlTask(void *pvParam)
                     break;
                 }
                 default:
-                    Log_Print(LOG_ERROR,"BcmControl: unknown can msg id:0x%03X\r\n",can_cmd.msg_id);
+                    Log_Print(LOG_ERROR,"BcmControl: 未知CAN指令ID:0x%03X\r\n",can_cmd.msg_id);
                     break;
             }
         }
@@ -349,11 +346,11 @@ static void SystemManageTask(void *pvParam)
 
         //报警声光控制  
         BcmFault_LedBeep_Control(); 
-
-        //2秒周期发送心跳报文
+        
+        //发送心跳报文
         if(hb_tx_flag == 1U)
         {
-            hb_tx_flag = 0U; 
+            hb_tx_flag = 0U;
             CAN_Protocol_SendHeartbeat(BcmFault_GetHeartBeatMode());
         }
 

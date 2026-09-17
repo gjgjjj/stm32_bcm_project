@@ -23,7 +23,7 @@ void BCM_State_Init(void)
     osal_mutex_take(&bcm_state_mutex, OSAL_WAIT_FOREVER);
     {
         bcm_state.light_state     = 0U;
-        bcm_state.lock_state      = 1U;
+        bcm_state.lock_state      = 0U;
         bcm_state.work_mode       = 0U;
         bcm_state.night_state     = 0U;
         bcm_state.fault_level     = 0U;

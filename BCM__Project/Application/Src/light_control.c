@@ -3,6 +3,7 @@
 #include "executor_diag.h"
 #include "fault_manager.h"
 #include "can_protocol.h"
+#include "log_service.h"
 
 static uint8_t light_shadow;    
 
@@ -18,6 +19,16 @@ void LightControl_ToggleWorkMode(void)
     BCM_GetState(&state_snap);
     uint8_t new_mode = !state_snap.light_work_mode;
     BCM_SetLightWorkMode(new_mode);
+
+    // 模式切换打印
+    if(new_mode == 0U)
+    {
+        Log_Print(LOG_INFO, "开启灯光手动模式\r\n");
+    }
+    else if(new_mode == 1U)
+    {
+        Log_Print(LOG_INFO, "开启灯光自动模式\r\n");
+    }
 }
 
 uint8_t LightControl_GetWorkMode(void)

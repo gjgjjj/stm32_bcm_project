@@ -29,4 +29,7 @@ uint16_t StorageMgr_ReadAllFault(Fault_Record_t *buf, uint16_t max_cnt);
 //全部清空故障日志环形区
 uint8_t StorageMgr_ClearAllFault(void);
 
+//打印历史故障日志
+void StorageMgr_PrintAllFaultLog(void);
+
 #endif

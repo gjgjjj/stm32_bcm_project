@@ -7,8 +7,10 @@ typedef enum
 {
     RELAY_LIGHT,
     RELAY_LOCK,
-    FB_LOCK,
-    FB_LIGHT,
+    FB_LOCK_NC,
+    FB_LIGHT_NC,
+    FB_LOCK_NO,
+    FB_LIGHT_NO,
     BEEP,
     RGB_RED,
     RGB_GREEN,

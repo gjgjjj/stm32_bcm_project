@@ -46,6 +46,7 @@ void BcmFault_Init(void)
 
     if(osal_mutex_take(&fault_table_mtx, 10U) == 0)
     {
+        Log_Print(LOG_ERROR,"初始化故障表互斥锁失败\r\n");
         return;
     }
     for(uint8_t i = 0; i < 4U; i++)
@@ -53,6 +54,8 @@ void BcmFault_Init(void)
         active_fault_table[i] = FAULT_EVENT_CLEAR;
     }
     osal_mutex_give(&fault_table_mtx);
+
+    StorageMgr_PrintAllFaultLog();
 }
 
 
