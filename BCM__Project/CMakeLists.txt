@@ -37,7 +37,6 @@ add_executable(${CMAKE_PROJECT_NAME}
     BSP/Inc/bsp_adc.h
     BSP/Inc/bsp_can.h
     BSP/Inc/bsp_uart.h
-    BSP/Inc/bsp_rtc.h
     BSP/Inc/bsp_flash.h
     BSP/Inc/bsp_iwdg.h
     BSP/Inc/bsp_test.h
@@ -51,6 +50,7 @@ add_executable(${CMAKE_PROJECT_NAME}
     Service/Inc/storage_manager.h
     Service/Inc/log_service.h
     Service/Inc/executor_diag.h
+    Service/Inc/iwdg_service.h
 
     Service/Inc/test.h
 
@@ -78,7 +78,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     BSP/Src/bsp_adc.c
     BSP/Src/bsp_can.c
     BSP/Src/bsp_uart.c
-    BSP/Src/bsp_rtc.c
     BSP/Src/bsp_flash.c
     BSP/Src/bsp_iwdg.c
     BSP/Src/bsp_test.c
@@ -92,6 +91,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Service/Src/storage_manager.c
     Service/Src/log_service.c
     Service/Src/executor_diag.c
+    Service/Src/iwdg_service.c
 
     Service/Src/test.c
 

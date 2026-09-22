@@ -64,5 +64,7 @@ void osal_delay_ms_until(osal_tick_t *last_wake_tick, uint32_t cycle_ms);   //�
 void* osal_get_current_task(void);              //获取当前任务句柄
 void osal_yield(void);                          //让出CPU，触发一次任务调度
 
+uint16_t osal_task_get_highwatermark(osal_task_handle_t h_task);   //获取任务栈高水位，单位：字节
+
 
 #endif

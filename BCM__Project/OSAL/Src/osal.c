@@ -320,3 +320,9 @@ void osal_yield(void)
     taskYIELD();
 }
 
+
+
+uint16_t osal_task_get_highwatermark(osal_task_handle_t h_task)
+{
+    return (uint16_t)uxTaskGetStackHighWaterMark(h_task);
+}

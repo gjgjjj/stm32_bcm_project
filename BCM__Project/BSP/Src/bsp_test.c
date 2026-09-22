@@ -6,7 +6,6 @@
 #include "bsp_can.h"
 #include "bsp_flash.h"
 #include "bsp_uart.h"
-#include "bsp_rtc.h"
 
 #include "FreeRTOS.h"
 #include "task.h"

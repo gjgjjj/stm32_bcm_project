@@ -1,5 +1,7 @@
 #include "bsp_iwdg.h"
 
+#include "stm32f1xx_hal.h"
+
 extern IWDG_HandleTypeDef hiwdg;
 
 void BSP_IWDG_Feed(void)

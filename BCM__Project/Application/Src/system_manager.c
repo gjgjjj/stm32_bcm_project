@@ -9,6 +9,7 @@
 #include "fault_manager.h"
 #include "key_manager.h"
 #include "storage_manager.h"
+#include "iwdg_service.h"
 
 #include "lock_control.h"
 #include "bcm_state.h"
@@ -43,6 +44,13 @@ static void BcmControlTask(void *pvParam);
 static void SystemManageTask(void *pvParam);
 static void FaultProcessTask(void *pvParam);
 
+static void can_protocol_CreateTask(void);     //CAN协议任务
+static void fault_monitor_CreateTask(void);    //故障监控任务
+static void input_collect_CreateTask(void);    //输入采集任务
+static void bcm_control_CreateTask(void);      //BCM控制任务
+static void system_manage_CreateTask(void);    //系统管理任务
+static void fault_process_CreateTask(void);    //故障处理任务
+
 
 static void Sensor_FeedFaultMgr(void)
 {
@@ -63,8 +71,28 @@ static void HeartBeatTimerCallback(void *pvArg)
 }
 
 
+// static void print_task_stack_watermark(void)
+// {
+//     uint32_t water;
+//     water = osal_task_get_highwatermark(can_proto_task);
+//     Log_Print(LOG_INFO,"CAN协议: stack remain %u words\r\n", water);
+//     water = osal_task_get_highwatermark(fault_monitor_task);
+//     Log_Print(LOG_INFO,"故障监控: stack remain %u words\r\n", water);
+//     water = osal_task_get_highwatermark(input_collect_task);
+//     Log_Print(LOG_INFO,"输入采集: stack remain %u words\r\n", water);
+//     water = osal_task_get_highwatermark(bcm_control_task);
+//     Log_Print(LOG_INFO,"BCM控制: stack remain %u words\r\n", water);
+//     water = osal_task_get_highwatermark(system_manage_task);
+//     Log_Print(LOG_INFO,"系统管理: stack remain %u words\r\n", water);
+//     water = osal_task_get_highwatermark(fault_process_task);
+//     Log_Print(LOG_INFO,"故障处理: stack remain %u words\r\n", water);
+//     Log_Print(LOG_INFO,"---\r\n");
+// }
+
+
 void SystemMgr_Init(void)
 {
+    //BSP_SaveResetReason();
     Log_Service_Init();
     Log_SetOutputLevel(LOG_INFO);
     Log_SetDebugEnable(1U);
@@ -75,12 +103,14 @@ void SystemMgr_Init(void)
     can_cmd_queue = osal_queue_create(8U, sizeof(CAN_Command_t));           // CAN 指令队列
     fault_event_queue = osal_queue_create(8U, sizeof(Fault_Event_t));       // 故障事件队列
 
-    // if((can_rx_queue == NULL)||(key_event_queue==NULL)||(can_cmd_queue==NULL)||(fault_event_queue==NULL))
+    // if((can_rx_queue == NULL)||(key_cmd_queue==NULL)||(can_cmd_queue==NULL)||(fault_event_queue==NULL))
     // {
     //     Log_Print(LOG_ERROR,"SystemMgr：队列资源创建失败\r\n");
     //     SystemMgr_EnterSafeFaultMode();
     //     return;
     // }
+
+    //BSP_PrintResetReason();
 
     CanProtocol_Init();                          
     CAN_Protocol_SetRxQueue(can_rx_queue);      
@@ -96,6 +126,7 @@ void SystemMgr_Init(void)
     WelcomeLight_Init();
     BcmFault_Init();
 
+    IWDG_Service_Init();
 }
 
 
@@ -108,6 +139,7 @@ void SystemMgr_StartTasksAndTimer(void)
     bcm_control_CreateTask();
     system_manage_CreateTask();
     fault_process_CreateTask();
+
 
     // 心跳定时器 2000ms
     uint8_t tmr_ret1 = osal_timer_create("hb_timer",2000U,1U,NULL,HeartBeatTimerCallback,&heartbeat_timer);
@@ -135,7 +167,7 @@ void SystemMgr_StartTasksAndTimer(void)
 //===================== 各任务创建 =====================
 void can_protocol_CreateTask(void)
 {
-    osal_task_create(CanProtocolTask, "can_proto_task", 512U, NULL, 5U, &can_proto_task);
+    osal_task_create(CanProtocolTask, "can_proto_task", 896U, NULL, 5U, &can_proto_task);
     if(can_proto_task == NULL)
     {
         Log_Print(LOG_ERROR,"CAN协议处理任务创建失败\r\n");
@@ -171,7 +203,7 @@ void bcm_control_CreateTask(void)
 
 void system_manage_CreateTask(void)
 {
-    osal_task_create(SystemManageTask, "system_manage_task", 512U, NULL, 1U, &system_manage_task);
+    osal_task_create(SystemManageTask, "system_manage_task", 1024U, NULL, 1U, &system_manage_task);
     if(system_manage_task == NULL)
     {
         Log_Print(LOG_ERROR,"系统管理任务创建失败\r\n");
@@ -180,7 +212,7 @@ void system_manage_CreateTask(void)
 
 void fault_process_CreateTask(void)
 {
-    osal_task_create(FaultProcessTask, "fault_process_task", 768U, NULL, 0U, &fault_process_task);
+    osal_task_create(FaultProcessTask, "fault_process_task", 896U, NULL, 0U, &fault_process_task);
     if(fault_process_task == NULL)
     {
         Log_Print(LOG_ERROR,"故障处理任务创建失败\r\n");
@@ -188,13 +220,12 @@ void fault_process_CreateTask(void)
 }
 
 
-
 //-------------------------- 各任务函数 --------------------------
 static void CanProtocolTask(void *pvParam)
 {
     (void)pvParam;
-    CAN_Message_t rx_msg;
-    CAN_Command_t cmd;
+    static CAN_Message_t rx_msg;
+    static CAN_Command_t cmd;
 
     while(1)
     {
@@ -207,7 +238,7 @@ static void CanProtocolTask(void *pvParam)
                 uint8_t send_ret = osal_queue_send(can_cmd_queue, &cmd, 0U);
                 if(send_ret != 1U)
                 {
-                    Log_Print(LOG_ERROR,"CanProtocolTask：CAN指令队列已满，丢弃\r\n");
+                    Log_Print(LOG_ERROR,"CAN指令队列已满，丢弃\r\n");
                 }
             }
             //解析失败直接丢弃，不处理
@@ -227,6 +258,7 @@ static void FaultMonitorTask(void *pvParam)
         Sensor_FeedFaultMgr();
         Can_FeedFaultMgr();
         
+        IWDG_Service_TaskFeed(IWDG_TASK_FAULT_MONITOR);
         osal_delay_ms_until(&last_wake_tick, 10U);
     }
 }
@@ -243,6 +275,7 @@ static void InputCollectTask(void *pvParam)
 
         KeyMgr_ScanProcess();        // 按键扫描，检测按键边沿，产生按键事件投递到队列
 
+        IWDG_Service_TaskFeed(IWDG_TASK_INPUT_COLLECT);
         osal_delay_ms_until(&last_wake_tick, 10U);
     }
 }
@@ -252,8 +285,8 @@ static void InputCollectTask(void *pvParam)
 static void BcmControlTask(void *pvParam)
 {
     (void)pvParam;
-    Key_Event_t         key_evt;
-    CAN_Command_t       can_cmd;
+    static Key_Event_t         key_evt;
+    static CAN_Command_t       can_cmd;
 
     osal_tick_t last_wake_tick = osal_get_tick();
 
@@ -326,6 +359,8 @@ static void BcmControlTask(void *pvParam)
         }
         WelcomeLight_Process();
 
+        IWDG_Service_TaskFeed(IWDG_TASK_BCM_CONTROL);
+
         osal_delay_ms_until(&last_wake_tick, 10U);
     }
 }
@@ -337,14 +372,14 @@ static void SystemManageTask(void *pvParam)
     (void)pvParam;
     osal_tick_t last_wake_tick = osal_get_tick();
 
+    // uint16_t stack_print_cnt = 0U;   // 周期计数器
+    // const uint16_t STACK_PRINT_CNT_MAX = 80U; 
+
     while(1)
     {
-        //BSP_IWDG_Feed();
-
         //更新全局故障等级和工作模式
         BcmFault_SetFaultLevel();
-
-        //报警声光控制  
+        //报警声光控制
         BcmFault_LedBeep_Control(); 
         
         //发送心跳报文
@@ -353,6 +388,18 @@ static void SystemManageTask(void *pvParam)
             hb_tx_flag = 0U;
             CAN_Protocol_SendHeartbeat(BcmFault_GetHeartBeatMode());
         }
+
+        // stack_print_cnt++;
+        // if(stack_print_cnt >= STACK_PRINT_CNT_MAX)
+        // {
+        //     stack_print_cnt = 0U; // 计数器清零
+        //     print_task_stack_watermark();
+        // }
+
+        IWDG_Service_TaskFeed(IWDG_TASK_SYSTEM_MANAGE);
+
+        // 看门狗巡检逻辑
+        IWDG_Service_TaskRoutine();
 
         osal_delay_ms_until(&last_wake_tick, 50U);
     }
