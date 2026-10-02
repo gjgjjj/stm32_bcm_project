@@ -194,7 +194,7 @@ void input_collect_CreateTask(void)
 
 void bcm_control_CreateTask(void)
 {
-    osal_task_create(BcmControlTask, "bcm_control_task", 768U, NULL, 2U, &bcm_control_task);
+    osal_task_create(BcmControlTask, "bcm_control_task", 768U, NULL, 3U, &bcm_control_task);
     if(bcm_control_task == NULL)
     {
         Log_Print(LOG_ERROR,"BCM控制任务创建失败\r\n");
@@ -203,7 +203,7 @@ void bcm_control_CreateTask(void)
 
 void system_manage_CreateTask(void)
 {
-    osal_task_create(SystemManageTask, "system_manage_task", 1024U, NULL, 1U, &system_manage_task);
+    osal_task_create(SystemManageTask, "system_manage_task", 1024U, NULL, 2U, &system_manage_task);
     if(system_manage_task == NULL)
     {
         Log_Print(LOG_ERROR,"系统管理任务创建失败\r\n");
@@ -212,7 +212,7 @@ void system_manage_CreateTask(void)
 
 void fault_process_CreateTask(void)
 {
-    osal_task_create(FaultProcessTask, "fault_process_task", 896U, NULL, 0U, &fault_process_task);
+    osal_task_create(FaultProcessTask, "fault_process_task", 896U, NULL, 1U, &fault_process_task);
     if(fault_process_task == NULL)
     {
         Log_Print(LOG_ERROR,"故障处理任务创建失败\r\n");
@@ -389,6 +389,7 @@ static void SystemManageTask(void *pvParam)
             CAN_Protocol_SendHeartbeat(BcmFault_GetHeartBeatMode());
         }
 
+        //栈高水位打印
         // stack_print_cnt++;
         // if(stack_print_cnt >= STACK_PRINT_CNT_MAX)
         // {

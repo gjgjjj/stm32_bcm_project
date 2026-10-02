@@ -1,5 +1,4 @@
 #include "iwdg_service.h"
-#include "stm32f1xx_hal.h"
 #include "bsp_iwdg.h"
 #include "osal.h"
 #include "log_service.h"
@@ -88,52 +87,53 @@ void IWDG_Service_TaskRoutine(void)
 }
 
 
-static uint8_t reset_reason = 0U;
-// 上电立刻获取上一次复位的原因
-void BSP_SaveResetReason(void)
-{
-    if(__HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST))
-    {
-        reset_reason = 1U;
-    }
-    else if(__HAL_RCC_GET_FLAG(RCC_FLAG_PINRST))
-    {
-        reset_reason = 2U;
-    }
-    else if(__HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST))
-    {
-        reset_reason = 3U;
-    }
-    else if(__HAL_RCC_GET_FLAG(RCC_FLAG_PORRST))
-    {
-        reset_reason = 4U;
-    }
-    else
-    {
-        reset_reason = 0U;
-    }
-    __HAL_RCC_CLEAR_RESET_FLAGS();
-}
+// #include "stm32f1xx_hal.h"
+// static uint8_t reset_reason = 0U;
+// // 上电立刻获取上一次复位的原因
+// void BSP_SaveResetReason(void)
+// {
+//     if(__HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST))
+//     {
+//         reset_reason = 1U;
+//     }
+//     else if(__HAL_RCC_GET_FLAG(RCC_FLAG_PINRST))
+//     {
+//         reset_reason = 2U;
+//     }
+//     else if(__HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST))
+//     {
+//         reset_reason = 3U;
+//     }
+//     else if(__HAL_RCC_GET_FLAG(RCC_FLAG_PORRST))
+//     {
+//         reset_reason = 4U;
+//     }
+//     else
+//     {
+//         reset_reason = 0U;
+//     }
+//     __HAL_RCC_CLEAR_RESET_FLAGS();
+// }
 
-// 打印上一次复位的原因
-void BSP_PrintResetReason(void)
-{
-    switch(reset_reason)
-    {
-        case 1U:
-            Log_Print(LOG_INFO, "IWDG独立看门狗复位\r\n");
-            break;
-        case 2U:
-            Log_Print(LOG_INFO, "外部NRST引脚复位\r\n");
-            break;
-        case 3U:
-            Log_Print(LOG_INFO, "NVIC软件复位\r\n");
-            break;
-        case 4U:
-            Log_Print(LOG_INFO, "POR上电复位\r\n");
-            break;
-        default:
-            Log_Print(LOG_INFO, "未知复位\r\n");
-            break;
-    }
-}
+// // 打印上一次复位的原因
+// void BSP_PrintResetReason(void)
+// {
+//     switch(reset_reason)
+//     {
+//         case 1U:
+//             Log_Print(LOG_INFO, "IWDG独立看门狗复位\r\n");
+//             break;
+//         case 2U:
+//             Log_Print(LOG_INFO, "外部NRST引脚复位\r\n");
+//             break;
+//         case 3U:
+//             Log_Print(LOG_INFO, "NVIC软件复位\r\n");
+//             break;
+//         case 4U:
+//             Log_Print(LOG_INFO, "POR上电复位\r\n");
+//             break;
+//         default:
+//             Log_Print(LOG_INFO, "未知复位\r\n");
+//             break;
+//     }
+// }
