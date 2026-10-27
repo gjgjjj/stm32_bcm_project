@@ -66,7 +66,7 @@ void LockControl_Process(void)
         return;
     }
     lock_shadow = global_state;
-    ExecutorDiag_SetLockExpect(global_state);
+    ExecutorDiag_SetLockOutput(global_state);
     CAN_Protocol_SendLockStatus(global_state);
 }
 

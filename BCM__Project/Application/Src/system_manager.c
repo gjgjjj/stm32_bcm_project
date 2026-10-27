@@ -103,13 +103,6 @@ void SystemMgr_Init(void)
     can_cmd_queue = osal_queue_create(8U, sizeof(CAN_Command_t));           // CAN 指令队列
     fault_event_queue = osal_queue_create(8U, sizeof(Fault_Event_t));       // 故障事件队列
 
-    // if((can_rx_queue == NULL)||(key_cmd_queue==NULL)||(can_cmd_queue==NULL)||(fault_event_queue==NULL))
-    // {
-    //     Log_Print(LOG_ERROR,"SystemMgr：队列资源创建失败\r\n");
-    //     SystemMgr_EnterSafeFaultMode();
-    //     return;
-    // }
-
     //BSP_PrintResetReason();
 
     CanProtocol_Init();                          
@@ -194,7 +187,7 @@ void input_collect_CreateTask(void)
 
 void bcm_control_CreateTask(void)
 {
-    osal_task_create(BcmControlTask, "bcm_control_task", 768U, NULL, 3U, &bcm_control_task);
+    osal_task_create(BcmControlTask, "bcm_control_task", 896U, NULL, 3U, &bcm_control_task);
     if(bcm_control_task == NULL)
     {
         Log_Print(LOG_ERROR,"BCM控制任务创建失败\r\n");
@@ -253,6 +246,11 @@ static void FaultMonitorTask(void *pvParam)
     osal_tick_t last_wake_tick = osal_get_tick();
     while(1)
     {
+        ExecutorDiag_LightMonitor ();
+        ExecutorDiag_LockMonitor ();
+
+        CanProtocol_RefreshHwErrorState();
+
         LightControl_FeedFaultMgr();
         LockControl_FeedFaultMgr();
         Sensor_FeedFaultMgr();
@@ -287,11 +285,14 @@ static void BcmControlTask(void *pvParam)
     (void)pvParam;
     static Key_Event_t         key_evt;
     static CAN_Command_t       can_cmd;
+    BCM_State current_state; 
 
     osal_tick_t last_wake_tick = osal_get_tick();
 
     while(1)
     {
+        BCM_GetState(&current_state); 
+
         //处理按键事件队列
         if(osal_queue_recv(key_cmd_queue, &key_evt, 0U) == 1U)
         {
@@ -317,41 +318,47 @@ static void BcmControlTask(void *pvParam)
         //处理CAN控制指令队列
         if(osal_queue_recv(can_cmd_queue, &can_cmd, 0U) == 1U)
         {
-            switch(can_cmd.msg_id)
+            if(current_state.work_mode == 1U) 
             {
-                case CAN_CMD_LIGHT:     
-                {
-                    uint8_t light_cmd = can_cmd.value;
-                    LightControl_SetOutput(light_cmd);
-                    break;
-                }
-                case CAN_CMD_LOCK:   
-                {
-                    uint8_t lock_cmd = can_cmd.value;
-                    LockControl_SetOutput(lock_cmd);
-
-                    break;
-                }
-                case CAN_CMD_FAULT_CLEAR:     
-                {
-                    uint8_t clear_flag = can_cmd.value;    
-                    if(clear_flag == 0x01U)
-                    {
-                        //这个指令的作用我还需考虑
-                    }
-                    break;
-                }
-                default:
-                    Log_Print(LOG_ERROR,"BcmControl: 未知CAN指令ID:0x%03X\r\n",can_cmd.msg_id);
-                    break;
+                Log_Print(LOG_INFO, "故障模式：已拦截CAN控制指令 ID:0x%03X\r\n", can_cmd.msg_id);
             }
+            else 
+            {
+                switch(can_cmd.msg_id)
+                {
+                    case CAN_CMD_LIGHT:     
+                    {
+                        uint8_t light_cmd = can_cmd.value;
+                        LightControl_SetOutput(light_cmd);
+                        break;
+                    }
+                    case CAN_CMD_LOCK:   
+                    {
+                        uint8_t lock_cmd = can_cmd.value;
+                        LockControl_SetOutput(lock_cmd);
+
+                        break;
+                    }
+                    case CAN_CMD_FAULT_CLEAR:     
+                    {
+                        uint8_t clear_flag = can_cmd.value;    
+                        if(clear_flag == 0x01U)
+                        {
+                            StorageMgr_ClearAllFault();
+                        }
+                        break;
+                    }
+                    default:
+                        Log_Print(LOG_ERROR,"BcmControl: 未知CAN指令ID:0x%03X\r\n",can_cmd.msg_id);
+                        break;
+                }
+
+            }
+            
         }
 
         LockControl_Process();
         LightControl_Process();
-
-        ExecutorDiag_LightRoutine();
-        ExecutorDiag_LockRoutine();
 
         if(LockControl_GetUnlock() == 1U)
         {

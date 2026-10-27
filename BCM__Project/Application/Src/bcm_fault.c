@@ -1,6 +1,5 @@
 #include "bcm_fault.h"
 #include "osal.h"
-#include "bsp_gpio.h"
 #include "log_service.h"
 #include "storage_manager.h"
 

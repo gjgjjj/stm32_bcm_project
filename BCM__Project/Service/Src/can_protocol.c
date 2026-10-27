@@ -7,39 +7,131 @@
 #define CAN_TX_ID_DOOR_STATUS      0x142U
 #define CAN_TX_ID_FAULT_EVENT      0x61U
 
-static uint8_t raw_fault_flag;        // 【硬件总线故障标记】0异常(BUSOFF/WARNING)，1正常
+static uint8_t raw_fault_flag;        
 
 //缓存CAN接收队列句柄
 static osal_queue_t can_rx_queue_handle = NULL;
 
-static CAN_ErrorState_t can_err_state;
+static CAN_ErrorState_t hw_state;
 
 static osal_mutex_t can_tx_mutex;
+
+typedef enum {
+    CAN_STATE_OK = 0,           // 正常状态（主动错误）
+    CAN_STATE_WARNING,          // 被动错误（仅告警）
+    CAN_STATE_BUSOFF_RECOVERING,// Bus-Off 恢复中（计时+重试）
+    CAN_STATE_BUSOFF_LOCKED     // Bus-Off 锁定（重试超限，等待复位）
+} CanState_t;
+
+static CanState_t can_state = CAN_STATE_OK;
+static uint8_t busoff_retry_cnt = 0;
+static uint32_t busoff_tick_start = 0;
+
+
 
 void CanProtocol_Init(void)
 {
     raw_fault_flag = 1U;         //硬件默认正常
-    can_err_state = CAN_ERR_OK;
+    hw_state = CAN_ERR_OK;
     can_rx_queue_handle = NULL;
     osal_mutex_create(&can_tx_mutex);
 }
 
 
-//刷新CAN硬件总线故障状态   周期调用
 void CanProtocol_RefreshHwErrorState(void)
 {
-    can_err_state = BSP_CAN_GetErrorState();
+    hw_state = BSP_CAN_GetErrorState();
+    uint8_t current_raw_fault = 1U; 
+    
+    static uint32_t ok_stable_tick = 0; 
 
-    //硬件状态同步到对外raw_fault_flag
-    if((can_err_state == CAN_ERR_BUSOFF) || (can_err_state == CAN_ERR_WARNING))
+    switch (can_state)
     {
-        raw_fault_flag = 0U;
+        case CAN_STATE_OK:
+            if (hw_state == CAN_ERR_WARNING)
+            {
+                can_state = CAN_STATE_WARNING;
+                Log_Print(LOG_INFO, "CAN进入被动错误(Warning)\r\n");
+            }
+            else if (hw_state == CAN_ERR_BUSOFF)
+            {
+                can_state = CAN_STATE_BUSOFF_RECOVERING;
+                busoff_retry_cnt = 0U;
+                busoff_tick_start = osal_get_ms();
+                Log_Print(LOG_ERROR, "检测到CAN Bus-Off，启动恢复流程\r\n");
+                current_raw_fault = 0U; 
+            }
+            else 
+            {
+                ok_stable_tick++;
+                if(ok_stable_tick >= 200U)
+                {
+                    busoff_retry_cnt = 0U;    
+                }
+            }
+            break;
+
+        case CAN_STATE_WARNING:
+            if (hw_state == CAN_ERR_OK)
+            {
+                can_state = CAN_STATE_OK;
+                ok_stable_tick = 0;
+                Log_Print(LOG_INFO, "CAN退出被动错误，恢复正常\r\n");
+            }
+            else if (hw_state == CAN_ERR_BUSOFF)
+            {
+                can_state = CAN_STATE_BUSOFF_RECOVERING;
+                busoff_retry_cnt = 0U; 
+                busoff_tick_start = osal_get_ms();
+                Log_Print(LOG_ERROR, "Warning恶化为CAN Bus-Off，启动恢复流程\r\n");
+                current_raw_fault = 0U; 
+            }
+            break;
+
+        case CAN_STATE_BUSOFF_RECOVERING:
+            current_raw_fault = 0U; 
+            
+            if ((osal_get_ms() - busoff_tick_start) >= 100U)
+            {
+                if (hw_state != CAN_ERR_BUSOFF)
+                {
+                    can_state = CAN_STATE_OK; 
+                    ok_stable_tick = 0; 
+                    Log_Print(LOG_INFO, "硬件退出Bus-Off，等待系统防抖确认\r\n");
+                }
+                else 
+                {
+                    if (busoff_retry_cnt < 3U)
+                    {
+                        busoff_retry_cnt++; 
+                        BSP_CAN_Stop();
+                        BSP_CAN_Start(); 
+                        
+                        busoff_tick_start = osal_get_ms(); 
+                        Log_Print(LOG_ERROR, "Bus-Off重新初始化，当前重试次数: %d/3\r\n", busoff_retry_cnt);
+                    }
+                    else
+                    {
+                        can_state = CAN_STATE_BUSOFF_LOCKED;
+                        Log_Print(LOG_ERROR, "Bus-Off重试3次失败，锁定故障状态\r\n");
+                    }
+                }
+            }
+            break;
+
+        case CAN_STATE_BUSOFF_LOCKED:
+            current_raw_fault = 0U; 
+            break;
+            
+        default:
+            can_state = CAN_STATE_OK;
+            break;
     }
-    else
-    {
-        raw_fault_flag = 1U;
-    }
+    
+    raw_fault_flag = current_raw_fault;
 }
+
+
 
 // 获取CAN硬件总线综合故障标志
 uint8_t CAN_Protocol_GetRawFault(void)
@@ -185,7 +277,7 @@ uint8_t CAN_Protocol_SendHeartbeat(uint8_t state)
     }
 
     //进入临界区，保护CAN硬件发送邮箱
-    if(osal_mutex_take(&can_tx_mutex, 10U) != 1U)
+    if(osal_mutex_take(&can_tx_mutex, 10U) == 0U)
     {
         Log_Print(LOG_ERROR,"CAN发送获取互斥锁超时\r\n");
         return 0U;
@@ -205,7 +297,7 @@ uint8_t CAN_Protocol_SendLightStatus(uint8_t state)
         return 0U;
     }
 
-    if(osal_mutex_take(&can_tx_mutex, 10U) != 1U)
+    if(osal_mutex_take(&can_tx_mutex, 10U) == 0U)
     {
         Log_Print(LOG_ERROR,"CAN发送获取互斥锁超时\r\n");
         return 0U;
@@ -224,7 +316,7 @@ uint8_t CAN_Protocol_SendLockStatus(uint8_t state)
         return 0U;
     }
 
-    if(osal_mutex_take(&can_tx_mutex, 10U) != 1U)
+    if(osal_mutex_take(&can_tx_mutex, 10U) == 0U)
     {
         Log_Print(LOG_ERROR,"CAN发送获取互斥锁超时\r\n");
         return 0U;
@@ -243,7 +335,7 @@ uint8_t CAN_Protocol_SendFaultEvent(uint8_t fault_id, uint8_t fault_st)
         return 0U;
     }
 
-    if(osal_mutex_take(&can_tx_mutex, 10U) != 1U)
+    if(osal_mutex_take(&can_tx_mutex, 10U) == 0U)
     {
         Log_Print(LOG_ERROR,"CAN发送获取互斥锁超时\r\n");
         return 0U;

@@ -89,7 +89,7 @@ CAN_ErrorState_t BSP_CAN_GetErrorState(void)
     {
         return CAN_ERR_BUSOFF;
     }
-    else if((err_flag & CAN_ESR_EPVF) != 0U)    //错误计数≥128
+    else if((err_flag & CAN_ESR_EPVF) != 0U)    //错误计数>127
     {
         return CAN_ERR_WARNING;
     }

@@ -78,7 +78,7 @@ void LightControl_Process(void)
 
     light_shadow = global_state;
 
-    ExecutorDiag_SetLightExpect(global_state);
+    ExecutorDiag_SetLightOutput(global_state);
     CAN_Protocol_SendLightStatus(global_state);
 }
 

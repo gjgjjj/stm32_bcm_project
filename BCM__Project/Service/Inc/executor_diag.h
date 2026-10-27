@@ -7,16 +7,16 @@
 void ExecutorDiag_Init(void);
 
 //设置车灯继电器期望输出指令
-void ExecutorDiag_SetLightExpect(uint8_t expect_state);
+void ExecutorDiag_SetLightOutput(uint8_t expect_state);
 
 //设置门锁继电器期望输出指令
-void ExecutorDiag_SetLockExpect(uint8_t expect_state);
+void ExecutorDiag_SetLockOutput(uint8_t expect_state);
 
 //车灯执行器周期诊断函数，10ms任务调用
-void ExecutorDiag_LightRoutine(void);
+void ExecutorDiag_LightMonitor (void);
 
 //门锁执行器周期诊断函数，10ms任务调用
-void ExecutorDiag_LockRoutine(void);
+void ExecutorDiag_LockMonitor (void);
 
 //获取车灯执行器原始故障状态  
 uint8_t ExecutorDiag_GetLightRawFault(void);

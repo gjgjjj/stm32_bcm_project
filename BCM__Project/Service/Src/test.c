@@ -760,14 +760,14 @@ static void Test_ExecutorDiag_Task(void *arg)
         osal_delay_ms_until(&last_wake, 10U);
 
         // 执行执行器诊断周期函数（10ms）
-        ExecutorDiag_LightRoutine();
-        ExecutorDiag_LockRoutine();
+        ExecutorDiag_LightMonitor ();
+        ExecutorDiag_LockMonitor ();
 
         switch(diag_test_step)
         {
         case TEST_STEP_LIGHT_SET_EXP1:
         {
-            ExecutorDiag_SetLightExpect(1U);
+            ExecutorDiag_SetLightOutput(1U);
             Log_Print(LOG_INFO,"1.灯光期望=1\r\n");
             step_start_ms = osal_get_ms();
             diag_test_step = TEST_STEP_LIGHT_WAIT1;
@@ -792,7 +792,7 @@ static void Test_ExecutorDiag_Task(void *arg)
         }
         case TEST_STEP_LIGHT_SET_EXP0:
         {
-            ExecutorDiag_SetLightExpect(0U);
+            ExecutorDiag_SetLightOutput(0U);
             Log_Print(LOG_INFO,"2.灯光期望=0\r\n");
             step_start_ms = osal_get_ms();
             diag_test_step = TEST_STEP_LIGHT_WAIT0;
@@ -817,7 +817,7 @@ static void Test_ExecutorDiag_Task(void *arg)
         }
         case TEST_STEP_LOCK_SET_EXP1:
         {
-            ExecutorDiag_SetLockExpect(1U);
+            ExecutorDiag_SetLockOutput(1U);
             Log_Print(LOG_INFO,"3.门锁期望=1\r\n");
             step_start_ms = osal_get_ms();
             diag_test_step = TEST_STEP_LOCK_WAIT1;
@@ -842,7 +842,7 @@ static void Test_ExecutorDiag_Task(void *arg)
         }
         case TEST_STEP_LOCK_SET_EXP0:
         {
-            ExecutorDiag_SetLockExpect(0U);
+            ExecutorDiag_SetLockOutput(0U);
             Log_Print(LOG_INFO,"4.门锁期望=0\r\n");
             step_start_ms = osal_get_ms();
             diag_test_step = TEST_STEP_LOCK_WAIT0;

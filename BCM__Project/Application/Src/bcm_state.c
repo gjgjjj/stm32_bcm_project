@@ -39,10 +39,14 @@ void BCM_GetState(BCM_State *p_bcm)
     {
         return;
     }
-    osal_mutex_take(&bcm_state_mutex, OSAL_WAIT_FOREVER);
+    if(osal_mutex_take(&bcm_state_mutex, 10U) == 0U)
     {
-        *p_bcm = bcm_state;
+        // 拿不到锁，默认当作严重故障处理
+        p_bcm->work_mode = 1U; 
+        p_bcm->fault_level = 2U;
+        return; 
     }
+    *p_bcm = bcm_state;
     osal_mutex_give(&bcm_state_mutex);
 }
 
@@ -52,19 +56,25 @@ void BCM_SetLightState(uint8_t state)
     {
         return;
     }
-    osal_mutex_take(&bcm_state_mutex, OSAL_WAIT_FOREVER);
+    if(osal_mutex_take(&bcm_state_mutex, 10U) == 0U)
     {
-        bcm_state.light_state = state;
+        return; 
     }
+    bcm_state.light_state = state;
     osal_mutex_give(&bcm_state_mutex);
 }
 
 void BCM_SetLightWorkMode(uint8_t mode)
 {
-    osal_mutex_take(&bcm_state_mutex, OSAL_WAIT_FOREVER);
+    if(mode > 1U)
     {
-        bcm_state.light_work_mode = mode;
+        return;
     }
+    if(osal_mutex_take(&bcm_state_mutex, 10U) == 0U)
+    {
+        return; 
+    }
+    bcm_state.light_work_mode = mode;
     osal_mutex_give(&bcm_state_mutex);
 }
 
@@ -74,10 +84,11 @@ void BCM_SetLockState(uint8_t state)
     {
         return;
     }
-    osal_mutex_take(&bcm_state_mutex, OSAL_WAIT_FOREVER);
+    if(osal_mutex_take(&bcm_state_mutex, 10U) == 0U)
     {
-        bcm_state.lock_state = state;
+        return; 
     }
+    bcm_state.lock_state = state;
     osal_mutex_give(&bcm_state_mutex);
 }
 
@@ -87,10 +98,11 @@ void BCM_SetWorkMode(uint8_t mode)
     {
         return;
     }
-    osal_mutex_take(&bcm_state_mutex, OSAL_WAIT_FOREVER);
+    if(osal_mutex_take(&bcm_state_mutex, 10U) == 0U)
     {
-        bcm_state.work_mode = mode;
+        return; 
     }
+    bcm_state.work_mode = mode;
     osal_mutex_give(&bcm_state_mutex);
 }
 
@@ -100,18 +112,20 @@ void BCM_SetNightState(uint8_t night)
     {
         return;
     }
-    osal_mutex_take(&bcm_state_mutex, OSAL_WAIT_FOREVER);
+    if(osal_mutex_take(&bcm_state_mutex, 10U) == 0U)
     {
-        bcm_state.night_state = night;
+        return; 
     }
+    bcm_state.night_state = night;
     osal_mutex_give(&bcm_state_mutex);
 }
 
 void BCM_SetFaultLevel(uint8_t level)
 {
-    osal_mutex_take(&bcm_state_mutex, OSAL_WAIT_FOREVER);
+    if(osal_mutex_take(&bcm_state_mutex, 10U) == 0U)
     {
-        bcm_state.fault_level = level;
+        return; 
     }
+    bcm_state.fault_level = level;
     osal_mutex_give(&bcm_state_mutex);
 }

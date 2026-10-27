@@ -25,29 +25,32 @@ void ExecutorDiag_Init(void)
     lock_settle_cnt = 0U;
 }
 
-void ExecutorDiag_SetLightExpect(uint8_t expect_state)
+void ExecutorDiag_SetLightOutput(uint8_t expect_state)
 {
     if(light_expect != expect_state)
     {
         light_expect = expect_state;
+
+        GPIO_WritePin(RELAY_LIGHT, light_expect); 
+
         light_settle_cnt = EXECUTOR_SETTLE_CNT;
     }
 }
 
-void ExecutorDiag_SetLockExpect(uint8_t expect_state)
+void ExecutorDiag_SetLockOutput(uint8_t expect_state)
 {
     if(lock_expect != expect_state)
     {
         lock_expect = expect_state;
+
+        GPIO_WritePin(RELAY_LOCK, lock_expect); 
+
         lock_settle_cnt = EXECUTOR_SETTLE_CNT;
     }
 }
 
-void ExecutorDiag_LightRoutine(void)
+void ExecutorDiag_LightMonitor (void)
 {
-    uint8_t light_cmd = light_expect;
-    GPIO_WritePin(RELAY_LIGHT, light_cmd);
-
     uint8_t fb_nc = GPIO_ReadPin(FB_LIGHT_NC);
     uint8_t fb_no = GPIO_ReadPin(FB_LIGHT_NO);
 
@@ -67,7 +70,7 @@ void ExecutorDiag_LightRoutine(void)
         {
             // NC、NO互斥，硬件链路正常，校验反馈是否符合指令
             uint8_t expect_nc, expect_no;
-            if(light_cmd == 1U)  // 继电器吸合
+            if(light_expect  == 1U)  // 继电器吸合
             {
                 expect_nc = 1U; // NC断开，上拉高
                 expect_no = 0U; // NO接通GND，低
@@ -90,11 +93,8 @@ void ExecutorDiag_LightRoutine(void)
     }
 }
 
-void ExecutorDiag_LockRoutine(void)
+void ExecutorDiag_LockMonitor (void)
 {
-    uint8_t lock_cmd = lock_expect;
-    GPIO_WritePin(RELAY_LOCK, lock_cmd);
-
     uint8_t fb_nc = GPIO_ReadPin(FB_LOCK_NC);
     uint8_t fb_no = GPIO_ReadPin(FB_LOCK_NO);
 
@@ -114,7 +114,7 @@ void ExecutorDiag_LockRoutine(void)
         {
             // NC、NO互斥，硬件链路正常，校验反馈是否符合指令
             uint8_t expect_nc, expect_no;
-            if(lock_cmd == 1U)  // 继电器吸合
+            if(lock_expect == 1U)  // 继电器吸合
             {
                 expect_nc = 1U; // NC断开，上拉高
                 expect_no = 0U; // NO接通GND，低
