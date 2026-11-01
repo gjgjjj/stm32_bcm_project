@@ -308,7 +308,7 @@ static void BcmControlTask(void *pvParam)
                     LockControl_Toggle();
                     break;
                 case KEY2_LONG:
-                    StorageMgr_ClearAllFault();
+                    BcmFault_ClearHistoryFault();
                     break;
                 default:
                     break;
@@ -344,7 +344,7 @@ static void BcmControlTask(void *pvParam)
                         uint8_t clear_flag = can_cmd.value;    
                         if(clear_flag == 0x01U)
                         {
-                            StorageMgr_ClearAllFault();
+                            BcmFault_ClearHistoryFault();
                         }
                         break;
                     }

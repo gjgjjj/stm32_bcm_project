@@ -9,8 +9,8 @@
 // 直接使用故障事件类型存储状态，和底层枚举保持一致
 static FaultEventType_t active_fault_table[4U];
 
-static uint8_t red_blink_en = 0U;
-static uint8_t beep_blink_en = 0U;
+static volatile uint8_t red_blink_en = 0U;
+static volatile uint8_t beep_blink_en = 0U;
 
 static osal_mutex_t fault_table_mtx;
 
