@@ -179,7 +179,7 @@ uint8_t CAN_Protocol_ParseMessage(const CAN_Message_t *rx_msg, CAN_Command_t *p_
         case CAN_CMD_FAULT_CLEAR:
             break;
         default:
-            Log_Print(LOG_ERROR, "CAN报文解析错误：不支持的报文ID:0x%03X\r\n", rx_msg->id);
+            Log_Print(LOG_ERROR, "CAN报文解析错误：不支持的报文ID:0x%02X\r\n", rx_msg->id);
             return 2U;
     }
 
